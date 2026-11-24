@@ -60,3 +60,7 @@ LICENSE.chromedriver
 .git/
 .gitignore
 
+# ── User private commands ───────────────────────────────────────────────────
+command_to_run_landers/
+
+
