@@ -1,0 +1,225 @@
+[
+  {
+    "id": 134233,
+    "case_code": "REG-001",
+    "title": "Apple iPhone 18 Pro Rich Lander",
+    "category": "valid_lander",
+    "defect_history": "Deep localized Apple lander with international banners, dense DOM, variable aperture specs, and high-resolution media. Previously tested for potential false-positive dead-page classification or layout timeouts; must extract complete text, screenshot, and status 2.",
+    "ad_data": {
+      "id": 134233,
+      "destination_url": "https://www.apple.com/in/iphone-18-pro/?cid=wwa-in-soc-iphn-trpp-socl-rbwfm-intd-rbwrl-lpv-ios-mob-xr13ose2t-gnt-broa-prlp-actniu-inen-trpcaa-andis-916ar-6s-trip-cmra-na-upg-na-na-na-07433242&mpid=7433242&link=variable-aperture",
+      "iso": ["us"]
+    },
+    "expected": {
+      "status": 2,
+      "reason_contains": null,
+      "requires_screenshot": true,
+      "requires_html": true,
+      "min_text_length": 500
+    }
+  },
+  {
+    "id": 134235,
+    "case_code": "REG-002",
+    "title": "Facebook Interstitial Redirect to Login Checkpoint",
+    "category": "login_checkpoint",
+    "defect_history": "Ad destination redirected to Facebook authentication wall (/login checkpoint). Must be correctly classified as Status 3 (Login Gate) without crashing or marking as valid lander.",
+    "ad_data": {
+      "id": 134235,
+      "destination_url": "https://l.facebook.com/l.php?u=https://www.assetzproperty.com/lp/assetzmuseandmaison/?utm_source=Meta",
+      "iso": ["IN"]
+    },
+    "mock_scenario": {
+      "final_url": "https://www.facebook.com/login/?next=https%3A%2F%2Fwww.facebook.com%2Fflx%2Fwarn",
+      "title": "Log in to Facebook",
+      "body_text": "Log In\nRecent logins\nClick your picture or add an account.\nLog into Facebook",
+      "word_count": 45
+    },
+    "expected": {
+      "status": 3,
+      "reason_contains": "Facebook login checkpoint"
+    }
+  },
+  {
+    "id": 134230,
+    "case_code": "REG-003",
+    "title": "Reliance Digital HTTP 403 Forbidden",
+    "category": "http_error_403",
+    "defect_history": "Server returns HTTP 403 Forbidden due to CDN or geo-filtering. Must detect HTTP 403 status code and report as Status 3 blocked.",
+    "ad_data": {
+      "id": 134230,
+      "destination_url": "https://store.reliancedigital.in/",
+      "iso": ["IN"]
+    },
+    "mock_scenario": {
+      "http_status": 403,
+      "title": "403 Forbidden",
+      "body_text": "403 Forbidden - Access Denied by Security Policy"
+    },
+    "expected": {
+      "status": 3,
+      "reason_contains": "HTTP Error Status 403"
+    }
+  },
+  {
+    "id": 474,
+    "case_code": "REG-004",
+    "title": "Saks Fifth Avenue 403 Geo-Block",
+    "category": "http_error_403",
+    "defect_history": "Akamai / EdgeSuite 403 Access Denied block on Indian/unauthorized IPs. Must be caught by HTTP status or blocked title markers.",
+    "ad_data": {
+      "id": 474,
+      "destination_url": "https://www.saksfifthavenue.com/",
+      "iso": ["IN"]
+    },
+    "mock_scenario": {
+      "http_status": 403,
+      "title": "Access Denied",
+      "body_text": "Access Denied. You don't have permission to access on this server. Reference #18.234"
+    },
+    "expected": {
+      "status": 3,
+      "reason_contains": "403"
+    }
+  },
+  {
+    "id": 467,
+    "case_code": "REG-005",
+    "title": "SoFi Cloudflare Turnstile Challenge",
+    "category": "bot_waf_challenge",
+    "defect_history": "Cloudflare Turnstile verification gate embedded in iframe/script (challenges.cloudflare.com). Must detect Bot/WAF signature in source and classify as Status 3 without hanging.",
+    "ad_data": {
+      "id": 467,
+      "destination_url": "https://www.sofi.com/",
+      "iso": ["IN"]
+    },
+    "mock_scenario": {
+      "page_source": "<!doctype html><html><head><title>Just a moment...</title><script src='https://challenges.cloudflare.com/turnstile/v0/api.js'></script></head><body><div id='cf-challenge'>Verify you are human</div></body></html>",
+      "title": "Just a moment...",
+      "body_text": "Verify you are human. Checking your browser before accessing."
+    },
+    "expected": {
+      "status": 3,
+      "reason_contains": "challenges.cloudflare.com"
+    }
+  },
+  {
+    "id": 399,
+    "case_code": "REG-006",
+    "title": "Groupon Cloudflare Challenge Platform",
+    "category": "bot_waf_challenge",
+    "defect_history": "Cloudflare challenge-platform interstitial token gate. Must match Bot/WAF markers and classify as Status 3.",
+    "ad_data": {
+      "id": 399,
+      "destination_url": "https://www.groupon.com/deals/n-c",
+      "iso": ["IN"]
+    },
+    "mock_scenario": {
+      "page_source": "<!doctype html><html><head><title>Attention Required! | Cloudflare</title></head><body><iframe src='https://cf-browser-verification.net/challenge-platform'></iframe></body></html>",
+      "title": "Attention Required! | Cloudflare",
+      "body_text": "Please complete the security check to continue."
+    },
+    "expected": {
+      "status": 3,
+      "reason_contains": "Bot/WAF block detected"
+    }
+  },
+  {
+    "id": 79,
+    "case_code": "REG-007",
+    "title": "Ixigo Flights Dynamic SPA",
+    "category": "dynamic_spa",
+    "defect_history": "Client-side React SPA flight search form. Previously risked false-positive empty DOM skip before JS mounted. Must wait for DOM stabilization and extract valid status 2.",
+    "ad_data": {
+      "id": 79,
+      "destination_url": "https://www.ixigo.com/flights?utm",
+      "iso": ["IN"]
+    },
+    "expected": {
+      "status": 2,
+      "reason_contains": null,
+      "requires_screenshot": true
+    }
+  },
+  {
+    "id": 99901,
+    "case_code": "REG-008",
+    "title": "E-Commerce Store with Slide-Out Login Drawer",
+    "category": "login_gate_false_positive_prevention",
+    "defect_history": "E-commerce store with rich product catalog and a slide-out customer login drawer. Must NOT be falsely classified as a login gate because the page contains >200 words of rich content.",
+    "ad_data": {
+      "id": 99901,
+      "destination_url": "https://www.example-store.com/products/running-shoes",
+      "iso": ["us"]
+    },
+    "mock_scenario": {
+      "final_url": "https://www.example-store.com/products/running-shoes",
+      "title": "Pro Running Shoes | Official Store",
+      "body_text": "Home Products Running Shoes. Features: breathable mesh, ultra-cushioned midsole, carbon-fiber plate. Customer reviews: 4.8 stars out of 5 from 340 runner reviews. Sizing guide available. Free shipping on orders over $50. 30-day money back guarantee. Added to cart. Checkout now. Related items: running socks, sports water bottle, reflective gear, athletic shorts. Account Login: enter email and password. Privacy policy and terms of service apply.",
+      "word_count": 280,
+      "has_login_drawer": true
+    },
+    "expected": {
+      "status": 2,
+      "is_login_gate": false
+    }
+  },
+  {
+    "id": 99902,
+    "case_code": "REG-009",
+    "title": "JS Translation Bundle with 'Page Not Found'",
+    "category": "dead_page_false_positive_prevention",
+    "defect_history": "Healthy brand store containing 'this page cannot be found' text inside a <script> i18n JSON translation dictionary. Must ONLY check inner_text('body'), ignoring script tags, preventing false-positive status 3.",
+    "ad_data": {
+      "id": 99902,
+      "destination_url": "https://www.example-brand.com/shoes",
+      "iso": ["us"]
+    },
+    "mock_scenario": {
+      "page_source": "<!doctype html><html><head><title>Official Shoe Catalog</title><script type='application/json'>{\"i18n\": {\"missing\": \"this page cannot be found\", \"error\": \"page does not exist\"}}</script></head><body><h1>Official Shoe Catalog</h1><p>Explore our premium collection of performance footwear.</p><div>Product 1: $120. Product 2: $150.</div></body></html>",
+      "title": "Official Shoe Catalog",
+      "visible_body_text": "Official Shoe Catalog. Explore our premium collection of performance footwear. Product 1: $120. Product 2: $150."
+    },
+    "expected": {
+      "status": 2,
+      "is_dead_page": false
+    }
+  },
+  {
+    "id": 99903,
+    "case_code": "REG-010",
+    "title": "Missing or Empty Destination URL Handling",
+    "category": "empty_url_handling",
+    "defect_history": "Ad object from GET API with empty or missing destination_url. Must be safely skipped as Status 3 without launching browser or raising uncaught exceptions.",
+    "ad_data": {
+      "id": 99903,
+      "destination_url": "",
+      "iso": ["us"]
+    },
+    "expected": {
+      "status": 3,
+      "reason_contains": "Empty destination_url"
+    }
+  },
+  {
+    "id": 99904,
+    "case_code": "REG-011",
+    "title": "Genuine 404 Not Found Dead Page",
+    "category": "dead_page",
+    "defect_history": "Visible 404 Error page with '404 Page Not Found' in visible body text. Must match DEAD_PAGE_TEXT_MARKERS and classify as Status 3.",
+    "ad_data": {
+      "id": 99904,
+      "destination_url": "https://www.example.com/expired-campaign-page",
+      "iso": ["us"]
+    },
+    "mock_scenario": {
+      "page_source": "<!doctype html><html><head><title>Page Notice</title></head><body><h1>404 Page Not Found</h1><p>The requested URL was not found on this server.</p></body></html>",
+      "title": "Page Notice",
+      "visible_body_text": "404 Page Not Found. The requested URL was not found on this server."
+    },
+    "expected": {
+      "status": 3,
+      "reason_contains": "404"
+    }
+  }
+]

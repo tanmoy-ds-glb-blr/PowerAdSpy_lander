@@ -15,6 +15,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 import new_lander
 from helper import init
+from tests.regression.regression_runner import DummyMetric, load_regression_cases, get_regression_case_by_id
 
 # ==============================================================================
 # BROWSER DISPLAY MODE:
@@ -59,78 +60,25 @@ logger = logging.getLogger("test_sample_ads")
 error_logger = logging.getLogger("test_sample_ads_error")
 
 # ==============================================================================
-# MANUALLY CONFIGURE YOUR SAMPLE ADS HERE
-# Add, remove, or edit any ad dictionaries you want to test.
+# DEFAULT REGRESSION SAMPLE ADS:
+# Loaded dynamically from tests/regression/regression_cases.json.
+# You can also pass a custom JSON file or specific ad ID via command line:
+#   python test_sample_ads.py
+#   python test_sample_ads.py --ad 134233
+#   python test_sample_ads.py path/to/my_ads.json
 # ==============================================================================
 
-SAMPLE_ADS = [
-    # {
-    #     "id": 474, # HTTP Error Status 403
-    #     "ad_url": "",
-    #     "destination_url": "https://www.saksfifthavenue.com/",
-    #     "iso": [
-    #         "IN"
-    #     ],
-    #     "country": [
-    #         "India"
-    #     ]
-    # },
-    # {
-    #     "id": 467, # Bot/WAF block detected: 'challenges.cloudflare.com'
-    #     "ad_url": "",
-    #     "destination_url": "https://www.sofi.com/",
-    #     "iso": [
-    #         "IN"
-    #     ],
-    #     "country": [
-    #         "India"
-    #     ]
-    # },
-    # {
-    #     "id": 399, # Bot/WAF block detected: 'challenge-platform'
-    #     "ad_url": "",
-    #     "destination_url": "https://www.groupon.com/deals/n-c",
-    #     "iso": [
-    #         "IN"
-    #     ],
-    #     "country": [
-    #         "India"
-    #     ]
-    # },
-    {
-        "id": 79, #
-        "destination_url": "https://www.ixigo.com/flights?utm",
-    },
-    # {
-    #     "id": , #
-    #     "ad_url": "",
-    #     "destination_url": "",
-    #     "iso": [
-    #         "IN"
-    #     ],
-    #     "country": [
-    #         "India"
-    #     ]
-    # }
-]
-
-class DummyCounter:
-    def labels(self, **kwargs):
-        return self
-
-    def inc(self):
-        pass
-
-
-class DummyMetric:
-    def __init__(self):
-        self.processed_configured_lander_url = DummyCounter()
-        self.updated_configured_lander = DummyCounter()
-        self.configured_lander_get = DummyCounter()
-        # Aliases
-        self.processed_lander_url = self.processed_configured_lander_url
-        self.updated_lander = self.updated_configured_lander
-        self.lander_get = self.configured_lander_get
+def get_default_sample_ads():
+    try:
+        cases = load_regression_cases()
+        return [c["ad_data"] for c in cases if c.get("ad_data", {}).get("destination_url")]
+    except Exception:
+        return [
+            {
+                "id": 134233,
+                "destination_url": "https://www.apple.com/in/iphone-18-pro/?cid=wwa-in-soc-iphn-trpp-socl-rbwfm-intd-rbwrl-lpv-ios-mob-xr13ose2t-gnt-broa-prlp-actniu-inen-trpcaa-andis-916ar-6s-trip-cmra-na-upg-na-na-na-07433242&mpid=7433242&link=variable-aperture",
+            }
+        ]
 
 
 def run_ad(ad_data, index=1, total=1):
@@ -140,10 +88,15 @@ def run_ad(ad_data, index=1, total=1):
     destination_url = ad_data.get("destination_url", "")
     iso = ad_data.get("iso", ["us"])
 
+    case_info = get_regression_case_by_id(ad_id)
+    case_label = f"[{case_info.get('case_code')}] {case_info.get('title')}" if case_info else f"Ad ID: {ad_id}"
+
     print("\n" + "=" * 76)
-    print(f"  [{index}/{total}] PROCESSING SAMPLE AD ID: {ad_id}")
+    print(f"  [{index}/{total}] PROCESSING SAMPLE AD: {case_label}")
     print(f"   Destination URL : {destination_url}")
     print(f"   Country ISO     : {iso}")
+    if case_info and case_info.get("defect_history"):
+        print(f"   Defect Context  : {case_info['defect_history'][:70]}...")
     print("=" * 76)
 
     metric = DummyMetric()
@@ -193,10 +146,21 @@ def main():
         print("   [HEADLESS ACTIVE] Running silently in background (HEADLESS=True)")
     print("=" * 76)
 
-    ads_to_run = SAMPLE_ADS
+    ads_to_run = get_default_sample_ads()
 
-    # Optional CLI support: python test_sample_ads.py <path_to_custom_ads.json>
-    if len(sys.argv) > 1:
+    # Optional CLI support: python test_sample_ads.py --ad <id>
+    if "--ad" in sys.argv:
+        try:
+            ad_idx = sys.argv.index("--ad") + 1
+            target_id = sys.argv[ad_idx]
+            case = get_regression_case_by_id(target_id)
+            if case:
+                ads_to_run = [case["ad_data"]]
+            else:
+                ads_to_run = [a for a in ads_to_run if str(a.get("id")) == str(target_id)]
+        except Exception:
+            pass
+    elif len(sys.argv) > 1 and not sys.argv[1].startswith("--"):
         custom_file = Path(sys.argv[1])
         if custom_file.is_file():
             try:
@@ -208,7 +172,7 @@ def main():
                     ads_to_run = [content]
                     print(f"Loaded single ad from: {custom_file}")
             except Exception as e:
-                print(f"[Warning] Failed to read {custom_file}: {e}. Using inline SAMPLE_ADS.")
+                print(f"[Warning] Failed to read {custom_file}: {e}. Using regression catalog.")
 
     print(f"Total ads to process: {len(ads_to_run)}\n")
 
