@@ -49,6 +49,15 @@ class LiveAdScrapingRegressionTests(unittest.TestCase):
             self.assertTrue(insert_data.get("screen_shot"))
             self.assertTrue(insert_data.get("destinations"))
 
+        # Verify screenshot file size <= 1 MB and tall document height (> 5000 px)
+        saved_sample = os.path.join("images", "saved_samples", "sample_134233.jpg")
+        if os.path.exists(saved_sample):
+            file_size = os.path.getsize(saved_sample)
+            self.assertLessEqual(file_size, 1048576, f"Screenshot file size {file_size} exceeded 1.0 MB")
+            from PIL import Image
+            with Image.open(saved_sample) as img:
+                self.assertGreater(img.height, 5000, f"Screenshot height {img.height} was truncated to viewport!")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,7 +4,7 @@
     "case_code": "REG-001",
     "title": "Apple iPhone 18 Pro Rich Lander",
     "category": "valid_lander",
-    "defect_history": "Deep localized Apple lander with international banners, dense DOM, variable aperture specs, and high-resolution media. Previously tested for potential false-positive dead-page classification or layout timeouts; must extract complete text, screenshot, and status 2.",
+    "defect_history": "Deep localized Apple lander with international banners, dense DOM, variable aperture specs, and high-resolution media. Previously tested for potential false-positive dead-page classification, layout timeouts, and screenshot viewport truncation defect (Playwright clip without full_page clamped screenshot to 1080px viewport instead of full document height). Must extract complete text, tall full-page screenshot (>= 10,000 px, <= 1 MB), and status 2.",
     "ad_data": {
       "id": 134233,
       "destination_url": "https://www.apple.com/in/iphone-18-pro/?cid=wwa-in-soc-iphn-trpp-socl-rbwfm-intd-rbwrl-lpv-ios-mob-xr13ose2t-gnt-broa-prlp-actniu-inen-trpcaa-andis-916ar-6s-trip-cmra-na-upg-na-na-na-07433242&mpid=7433242&link=variable-aperture",
@@ -15,7 +15,9 @@
       "reason_contains": null,
       "requires_screenshot": true,
       "requires_html": true,
-      "min_text_length": 500
+      "min_text_length": 500,
+      "min_screenshot_height": 10000,
+      "max_screenshot_bytes": 1048576
     }
   },
   {

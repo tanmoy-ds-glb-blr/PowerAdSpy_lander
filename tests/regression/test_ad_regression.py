@@ -13,6 +13,8 @@ import tempfile
 import unittest
 
 from helper.init import _resolve_chrome_paths
+from helper.capture import capture_page, encode_under_limit
+from PIL import Image, ImageDraw
 import new_lander
 from tests.regression.regression_runner import (
     DummyMetric,
@@ -335,6 +337,114 @@ class AdScrapingRegressionTests(unittest.TestCase):
         keywords = new_lander.get_status3_keywords()
         self.assertIsInstance(keywords, list)
         self.assertGreater(len(keywords), 0, "status_3_keywords.txt should contain keywords")
+
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Defect Scenario: Screenshot Full-Height Capture & 1MB Limit Regression
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def test_screenshot_tall_page_full_capture_not_clamped_to_viewport(self):
+        """Tall landing pages must be captured at full document height, never clamped to viewport."""
+        html = """
+        <!doctype html><html><body style="margin:0;padding:0;background:#f5f5f7">
+          <header style="height:200px;background:#333;color:#fff;padding:20px"><h1>Top Header</h1></header>
+          <section style="height:1500px;background:linear-gradient(#fff, #0071e3);padding:20px">
+            <h2>Product Specs</h2><p>Feature details section 1</p>
+          </section>
+          <section style="height:1500px;background:linear-gradient(#0071e3, #333);color:#fff;padding:20px">
+            <h2>Deep Specs</h2><p>Feature details section 2</p>
+          </section>
+          <footer style="height:1000px;background:#111;color:#fff;padding:20px">
+            <p>Copyright 2026 Legal Footer</p>
+          </footer>
+        </body></html>
+        """
+        page, temp_path = self._render_in_browser(html)
+        old_cwd = os.getcwd()
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                try:
+                    os.chdir(folder)
+                    class FullPageConfig:
+                        def get_default(self, key):
+                            return {
+                                "CAPTURE_MAX_HEIGHT": 32000,
+                                "CAPTURE_MAX_WIDTH": 1920,
+                                "SCREENSHOT_MAX_BYTES": 1048576,
+                            }.get(key)
+
+                    result = capture_page(page, "tall_test", "reg_instance", config=FullPageConfig())
+                    self.assertEqual(result.state, "full")
+                    self.assertFalse(result.truncated)
+                    # Must capture full document (> 4000 px), strictly NOT clamped to viewport (720 px)
+                    self.assertGreaterEqual(result.height, 4000, "Screenshot was truncated to viewport height!")
+                    self.assertLessEqual(result.final_bytes, 1048576, "Screenshot exceeded 1.0 MB limit!")
+                    self.assertTrue(os.path.exists(result.image_path))
+                    self.assertEqual(os.path.getsize(result.image_path), result.final_bytes)
+                finally:
+                    os.chdir(old_cwd)
+        finally:
+            page.close()
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+    def test_screenshot_bounded_clip_captures_full_bound_not_viewport(self):
+        """When CAPTURE_MAX_HEIGHT is reached, Playwright clip must capture up to limit, not viewport."""
+        html = """
+        <!doctype html><html><body style="margin:0;padding:0">
+          <div style="height:6000px;background:linear-gradient(#fff, #111);padding:20px">
+            <h1>Long Webpage</h1>
+            <div style="position:absolute;top:2000px">Midway Marker</div>
+            <div style="position:absolute;top:4000px">Lower Marker</div>
+          </div>
+        </body></html>
+        """
+        page, temp_path = self._render_in_browser(html)
+        old_cwd = os.getcwd()
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                try:
+                    os.chdir(folder)
+                    class BoundedConfig:
+                        def get_default(self, key):
+                            return {
+                                "CAPTURE_MAX_HEIGHT": 2500,
+                                "CAPTURE_MAX_WIDTH": 1920,
+                                "SCREENSHOT_MAX_BYTES": 1048576,
+                            }.get(key)
+
+                    result = capture_page(page, "bounded_test", "reg_instance", config=BoundedConfig())
+                    self.assertEqual(result.state, "partial")
+                    self.assertTrue(result.truncated)
+                    # Height must equal the bounded limit (2500 px), NOT viewport height (~720 px)
+                    self.assertEqual(result.height, 2500, "Bounded clip failed to capture full bound!")
+                    self.assertGreater(result.height, 1000, "Bounded clip was erroneously clamped to viewport!")
+                    self.assertLessEqual(result.final_bytes, 1048576)
+                finally:
+                    os.chdir(old_cwd)
+        finally:
+            page.close()
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+    def test_screenshot_compression_and_1mb_limit_guarantee(self):
+        """Image encoder must reliably compress large/tall screenshots strictly under 1 MB."""
+        with tempfile.TemporaryDirectory() as folder:
+            # Create a very tall synthetic image: 1920 x 25000 px
+            tall_image = Image.new("RGB", (1920, 25000), color=(245, 245, 247))
+            draw = ImageDraw.Draw(tall_image)
+            for y in range(0, 25000, 500):
+                draw.rectangle([(50, y), (1870, y + 200)], fill=(y % 255, (y * 2) % 255, (y * 3) % 255))
+                draw.text((100, y + 50), f"Section marker at y={y} px", fill=(255, 255, 255))
+
+            out_path = os.path.join(folder, "test_tall_compressed.jpg")
+            w, h, size, quality = encode_under_limit(tall_image, out_path, max_bytes=1048576)
+
+            self.assertTrue(os.path.exists(out_path))
+            self.assertLessEqual(size, 1048576, f"Compressed file size {size} exceeded 1.0 MB (1048576 bytes)!")
+            self.assertEqual(size, os.path.getsize(out_path))
+            self.assertGreater(h, 5000, "Encoded image height should remain substantial")
+            self.assertGreaterEqual(quality, 45, "Quality dropped below minimum 45")
 
 
 if __name__ == "__main__":

@@ -116,6 +116,7 @@ class BrowserPipelineFixtureTests(unittest.TestCase):
                     self.assertEqual(result.state, "partial")
                     self.assertTrue(result.truncated)
                     self.assertLessEqual(result.height, 3000)
+                    self.assertGreater(result.height, 1000)
                 finally:
                     os.chdir(old_cwd)
         finally:
