@@ -45,9 +45,9 @@ def _dismiss_known_consent(page, action="accept"):
 def _settings(config=None):
     get = (lambda key, default: config.get_default(key) if config and config.get_default(key) is not None else default)
     return {
-        "max_height": int(get("CAPTURE_MAX_HEIGHT", 12000)),
+        "max_height": int(get("CAPTURE_MAX_HEIGHT", 32000)),
         "max_width": int(get("CAPTURE_MAX_WIDTH", 1920)),
-        "max_steps": int(get("CAPTURE_MAX_SCROLL_STEPS", 20)),
+        "max_steps": int(get("CAPTURE_MAX_SCROLL_STEPS", 40)),
         "max_seconds": float(get("CAPTURE_MAX_SCROLL_SECONDS", 45)),
         "max_bytes": int(get("SCREENSHOT_MAX_BYTES", 1048576)),
         "min_width": int(get("SCREENSHOT_MIN_WIDTH", 960)),
@@ -213,6 +213,14 @@ def encode_under_limit(image, path, max_bytes=1048576, min_width=960, min_qualit
         if chosen is not None:
             break
         if working.width <= min_width:
+            # If we reached minimum width and minimum quality, intelligently trim trailing height
+            # to maximize captured page height within max_bytes, preserving as much content as possible.
+            if max_bytes >= 10000 and working.height > 1000:
+                new_h = int(working.height * 0.85)
+                if new_h < 500:
+                    raise RuntimeError(f"COMPRESSION_LIMIT_FAILED: cannot reach {max_bytes} bytes at minimum width {min_width}")
+                working = working.crop((0, 0, working.width, new_h))
+                continue
             raise RuntimeError(f"COMPRESSION_LIMIT_FAILED: cannot reach {max_bytes} bytes at minimum width {min_width}")
         new_width = max(min_width, int(working.width * 0.85))
         new_height = max(1, round(working.height * new_width / working.width))
@@ -265,7 +273,14 @@ def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_
             raw = page.screenshot(full_page=True, timeout=screenshot_timeout)
         else:
             mode = "bounded_clip"
-            raw = page.screenshot(clip={"x": 0, "y": 0, "width": capture_width, "height": capture_height}, timeout=screenshot_timeout)
+            try:
+                raw = page.screenshot(
+                    full_page=True,
+                    clip={"x": 0, "y": 0, "width": capture_width, "height": capture_height},
+                    timeout=screenshot_timeout,
+                )
+            except Exception:
+                raw = page.screenshot(full_page=True, timeout=screenshot_timeout)
     except ProxyUnavailableError:
         raise
     except Exception as exc:
@@ -284,6 +299,8 @@ def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_
         except Exception as segmented_exc:
             raise RuntimeError(f"CAPTURE_NATIVE_FAILED: {exc}; segmented fallback failed: {segmented_exc}") from segmented_exc
     image = Image.open(BytesIO(raw)).convert("RGB")
+    if image.height > capture_height or image.width > capture_width:
+        image = image.crop((0, 0, min(image.width, capture_width), min(image.height, capture_height)))
     scores = _visual_scores(image, int(final.get("textLength") or 0))
     if scores["dom_rich_but_blank"] and mode != "segmented_fallback":
         raw = _capture_segmented(

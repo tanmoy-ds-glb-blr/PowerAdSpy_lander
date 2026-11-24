@@ -4,7 +4,7 @@ import random
 from io import BytesIO
 from PIL import Image
 
-_MAX_CAPTURE_HEIGHT = 12000
+_MAX_CAPTURE_HEIGHT = 32000
 _MAX_CAPTURE_WIDTH = 1920
 
 _UNIVERSAL_ANIMATION_JS = """() => {

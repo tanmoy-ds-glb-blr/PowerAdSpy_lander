@@ -70,27 +70,7 @@ SAMPLE_ADS = [
         "id": 134233,
         "destination_url": "https://www.apple.com/in/iphone-18-pro/?cid=wwa-in-soc-iphn-trpp-socl-rbwfm-intd-rbwrl-lpv-ios-mob-xr13ose2t-gnt-broa-prlp-actniu-inen-trpcaa-andis-916ar-6s-trip-cmra-na-upg-na-na-na-07433242&mpid=7433242&link=variable-aperture",
         "iso": ["us"],
-    },
-    # {
-    #     "id": 79,
-    #     "destination_url": "https://www.ixigo.com/flights?utm",
-    #     "iso": ["IN"],
-    # },
-    # {
-    #     "id": 474, # HTTP Error Status 403
-    #     "destination_url": "https://www.saksfifthavenue.com/",
-    #     "iso": ["IN"],
-    # },
-    # {
-    #     "id": 467, # Bot/WAF block detected: 'challenges.cloudflare.com'
-    #     "destination_url": "https://www.sofi.com/",
-    #     "iso": ["IN"],
-    # },
-    # {
-    #     "id": 399, # Bot/WAF block detected: 'challenge-platform'
-    #     "destination_url": "https://www.groupon.com/deals/n-c",
-    #     "iso": ["IN"],
-    # }
+    }
 ]
 
 
