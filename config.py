@@ -25,16 +25,23 @@ class Config:
         self.default = self._config.get("default_settings", {})
         self.networks = self._config.get("networks", {})
 
-        # If network not passed explicitly, read from config.yaml default_settings
+        # If network not passed explicitly, read from environment or config.yaml default_settings
         if not network:
-            network = self.default.get("NETWORK")
+            network = os.environ.get("NETWORK") or self.default.get("NETWORK")
 
         if not network:
             raise ValueError(
                 "Network not specified. Please define 'NETWORK' under default_settings in config.yaml or pass it explicitly."
             )
 
-        self.network_name = str(network).strip().lower()
+        aliases = {
+            "fb": "facebook",
+            "insta": "instagram",
+            "yt": "youtube",
+            "pin": "pinterest",
+        }
+        net_str = str(network).strip().lower()
+        self.network_name = aliases.get(net_str, net_str)
 
         if self.network_name not in self.networks:
             raise ValueError(f"Network '{self.network_name}' not found in config.")
