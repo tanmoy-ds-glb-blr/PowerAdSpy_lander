@@ -1,0 +1,269 @@
+SAMPLE_ADS = [
+    {
+        "id": ,
+        "ad_url": "",
+        "destination_url": "",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    }
+]
+
+
+
+## Facebook bugs ads
+SAMPLE_ADS = [
+    {
+        "id": ,
+        "ad_url": "",
+        "destination_url": "",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    }
+]
+
+
+
+
+## Youtube bugs ads
+SAMPLE_ADS = [
+    {
+        "id": 281987,
+        "ad_url": "",
+        "destination_url": "https://www.dickssportinggoods.com/ScoreCardPlus?camp=SNS:DV360:Paid:Loyalty:Video::Awareness&gad_source=2",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 281984,
+        "ad_url": "",
+        "destination_url": "https://www.narscosmetics.com/?gad_source=2&gad_campaignid=20711091810&gbraid=0AAAAADolTK5tz8Whs-kyRuyREQAbKUGi3&gbraid=0AAAAADolTK5tz8Whs-kyRuyREQAbKUGi3&gclid=EAIaIQobChMI7PyB1bDXlAMVNjp2Bh3sMwXwEAEYASAAEgK1mvD_BwE&gclsrc=aw.ds",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 281944,
+        "ad_url": "",
+        "destination_url": "https://www.pinterest.com/pinterest/?utm_source=Paid_YouTube&utm_campaign=ConsumerBrand_US_Q22026Anthem60&utm_medium=PaidMedia&gad_source=2&gad_campaignid=23743086863&gclid=EAIaIQobChMIwe2yiK_XlAMVAwzbAR2IQBhnEAEYAiAAEgJkvvD_BwE",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 281935,
+        "ad_url": "",
+        "destination_url": "https://www.lesschwab.com/sale?gad_source=2&gad_campaignid=23800798532&gbraid=0AAAAADkrmiUEFYYB7NqJxtKRkqDkQFOft&gclid=EAIaIQobChMIi9-w3a7XlAMVKwR2Bh3KbQgsEAEYAyAAEgLWFvD_BwE",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 281981,
+        "ad_url": "",
+        "destination_url": "https://open.spotify.com/track/5McmtLnuuUvBvESzMFQ4Yo?utm_source=dv360-united-states-awareness-na-na&utm_medium=olv&utm_campaign=ca7rielandpaco-music-yt-ca7rielandpaco-fans-ca7riel-yt-muero-15s-local-united-states-awareness-nam-cultural-2026q2&utm_content=artistmuero-no&gad_source=2&gad_campaignid=23857090794&gclid=EAIaIQobChMIq7qdvLDXlAMVQDyKAx3SaQDeEAEYASAAEgJpBPD_BwE",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 298181,
+        "ad_url": "",
+        "destination_url": "https://www.wordsmith.ai/?utm_source=google&utm_medium=cpc&utm_campaign=Youtube-usa&gad_source=2&gad_campaignid=23722270224&gclid=EAIaIQobChMI8ZKDjdCNlwMV8UkrAx11xBcFEAEYASAAEgJlFPD_BwE",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 43138,
+        "ad_url": "",
+        "destination_url": "https://www.wordsmith.ai/?utm_source=google&utm_medium=cpc&utm_campaign=Youtube-usa&gad_source=2&gad_campaignid=23722270224&gclid=EAIaIQobChMI8ZKDjdCNlwMV8UkrAx11xBcFEAEYASAAEgJlFPD_BwE",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+]
+
+
+
+## Google bug Ads
+SAMPLE_ADS = [
+    {
+        "id": 167444,
+        "ad_url": "",
+        "destination_url": "https://www.kualitee.com/blog/bug-management/think-like-a-tester-how-to-reproduce-bugs/",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 167434,
+        "ad_url": "",
+        "destination_url": "https://www.drupal.org/community/contributor-guide/task/document-steps-to-reproduce-an-issue",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 167413,
+        "ad_url": "",
+        "destination_url": "scribd.com/doc/166771687/Chain-Index",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 167390,
+        "ad_url": "",
+        "destination_url": "https://www.nykaa.com/makeup/lips/lipstick/c/249",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 167410,
+        "ad_url": "",
+        "destination_url": "https://edurev.in/t/113530/chain-base-index-numbers-business-mathematics-and-statistics",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 167420,
+        "ad_url": "",
+        "destination_url": "https://edurev.in/t/113530/chain-base-index-numbers-business-mathematics-and-statistics#:~:text=Chain-Base%20Index%20Numbers%20are,base%20for%20the%20next%20period.",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    },
+    {
+        "id": 167434,
+        "ad_url": "",
+        "destination_url": "https://www.drupal.org/community/contributor-guide/task/document-steps-to-reproduce-an-issue",
+        "iso": [
+            "IN"
+        ],
+        "country": [
+            "India"
+        ]
+    }
+]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
