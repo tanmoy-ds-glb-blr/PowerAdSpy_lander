@@ -1,0 +1,36 @@
+git clone https://github.com/TanmoyGlobusSoft/System-Health-Monitor.git
+TanmoyGlobusSoft
+<YOUR_GITHUB_PAT>
+
+
+
+# Docker Build Command
+docker build -t system-health-monitor .
+
+
+# Docker Run Command
+docker run -d \
+  --name my-server-monitor \
+  --restart unless-stopped \
+  --pid host \
+  --network host \
+  -v /:/host:ro \
+  -v "$(pwd)":/app \
+  system-health-monitor
+
+
+# View live collection logs
+docker logs -f my-server-monitor
+
+
+# Run stats analyzer from inside the container
+docker exec -it my-server-monitor python analyze.py
+
+
+# Gracefully stop the monitor
+docker stop my-server-monitor
+
+
+# Start it back up anytime
+docker start my-server-monitor
+

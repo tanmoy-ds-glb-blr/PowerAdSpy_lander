@@ -1,0 +1,394 @@
+POWERADSPY LANDERS
+DAILY LOG FOLDER IMPLEMENTATION AND TESTING PLAN
+Created: 24-10-2026
+
+======================================================================
+1. OBJECTIVE
+======================================================================
+
+When `python new_lander.py` remains active across one or more midnights, every
+log record must be written under the folder for the local calendar date on
+which that record was created. The process must not require a restart at
+midnight.
+
+Required layout:
+
+logs/
+  24-10-2026/
+    payloads.log
+    successful_payloads.json
+    unsuccessful_ads.json
+    proxy.log
+    1_chatgpt_lander_logger.log
+    2_chatgpt_lander_logger.log
+    ...
+  25-10-2026/
+    ...
+
+er_logs/
+  24-10-2026/
+    1_chatgpt_error_logger.log
+    2_chatgpt_error_logger.log
+    ...
+  25-10-2026/
+    ...
+
+The date format will be DD-MM-YYYY. The configured timezone, defaulting to
+Asia/Kolkata, will determine midnight and the destination date. A record
+created before midnight must remain in the previous day's folder even if a
+logging queue processes it just after midnight.
+
+======================================================================
+2. CURRENT CODE FINDINGS
+======================================================================
+
+The active implementation is in `new_lander.py`.
+
+Current streams:
+
+1. logs/payloads.log
+2. logs/successful_payloads.json
+3. logs/unsuccessful_ads.json
+4. logs/proxy.log
+5. logs/<instance>_<network>_lander_logger.log
+6. er_logs/<instance>_<network>_error_logger.log
+
+The current `setup_logger` uses `RotatingFileHandler`. It creates handlers at
+module-import time for four shared streams and again inside each worker. It
+only checks `logger.handlers`, so a long-running handler never changes its
+destination at midnight.
+
+`multi_chrome` currently sets `logging.Formatter.converter = time.gmtime`, so
+formatted timestamps are UTC even though the required day boundary is
+Asia/Kolkata. That global override must be removed. Folder routing and rendered
+timestamps must use the same configured timezone.
+
+Multiple worker processes can write the four shared files simultaneously.
+Python's standard `RotatingFileHandler` is thread-safe but is not safe for
+several processes rotating the same file. The daily-folder change must not
+preserve that race.
+
+These supporting files also assume flat log paths and need compatibility
+updates where relevant:
+
+- analysis.py
+- test_logging_streams.py
+- test_ad_live.py
+- test_sample_ads.py
+- quick_run_sample_ads.py
+- unsuccessfull-ads-form-payloads.py
+- README.md
+
+Old/learning lander files are not production entry points and will not be
+silently modified. They may be documented as legacy unless the user later
+requests the same behavior for them.
+
+======================================================================
+3. REQUIRED BEHAVIOR
+======================================================================
+
+1. Create the date directory lazily on the first record for that date.
+2. Route by `LogRecord.created`, converted to the configured timezone.
+3. Switch folders at 12:00:00 AM without restarting the parent or workers.
+4. Keep the existing filename and raw/non-raw formatting behavior.
+5. Keep size-based rotation inside each date directory. For example:
+   payloads.log, payloads.log.1, payloads.log.2.
+6. Centralize physical file writes so worker processes never rotate the same
+   file independently.
+7. Flush every emitted record through the normal logging handler flush path.
+8. Drain and close the logging queue during graceful shutdown.
+9. Preserve existing flat log files. Do not move, rename, or delete historical
+   data automatically.
+10. Do not automatically delete dated folders. Retention is disabled unless a
+    separate retention policy is explicitly enabled later.
+11. Prevent relative paths, `..`, absolute paths, or separators supplied as a
+    log filename from escaping `logs` or `er_logs`.
+12. A logging failure must not crash a scraper worker. It must be reported to
+    stderr with rate limiting.
+
+======================================================================
+4. PROPOSED ARCHITECTURE
+======================================================================
+
+Create `helper/daily_logging.py` containing the logging infrastructure.
+
+A. Worker-side queue handler
+
+- Each worker logger uses a queue handler instead of opening files.
+- Extra record attributes identify:
+  - root: `logs` or `er_logs`
+  - filename
+  - raw versus formatted mode
+  - max bytes
+  - backup count
+- Use a bounded multiprocessing logging queue.
+- Use a small bounded put timeout. If the queue remains full, report a
+  rate-limited warning to stderr rather than blocking the scrape forever.
+- Do not put live file objects, browser objects, request sessions, or other
+  non-picklable values into a LogRecord.
+
+B. One parent-owned listener
+
+- Start one listener before the worker pool.
+- Only the listener opens and writes log files.
+- The listener receives records from all workers and routes them to the proper
+  root/date/filename handler.
+- Stop accepting records only after workers are terminated or have exited.
+- Send a sentinel, drain queued records, flush, close handlers, and then stop
+  the listener during graceful shutdown.
+
+C. Date-directory routing handler
+
+- Implement a `DailyDirectoryRouter` handler.
+- Convert `record.created` using `zoneinfo.ZoneInfo(LOG_TIMEZONE)`.
+- Format the date with `%d-%m-%Y`.
+- Resolve the target only as:
+  `<approved root>/<date>/<validated filename>`.
+- Maintain inner `RotatingFileHandler` instances keyed by:
+  `(root, date, filename, raw, max_bytes, backups)`.
+- Keeping handlers keyed by date handles slightly late/out-of-order records at
+  midnight without accidentally writing them into the new date.
+- Close handlers that have been inactive beyond a bounded interval and close
+  every handler during shutdown.
+- Use UTF-8 consistently.
+
+D. Formatter preservation
+
+- Standard files keep:
+  `%(asctime)s | %(levelname)s | %(name)s | %(message)s`.
+- Raw JSON-line streams keep `%(message)s` only.
+- Existing logger levels and propagation behavior remain unchanged.
+- Add exactly one queue handler per named logger; repeated `setup_logger` calls
+  must not duplicate records.
+- Add a timezone-aware formatter whose `formatTime` uses `LOG_TIMEZONE`; do not
+  mutate `logging.Formatter.converter` globally.
+
+E. Import and process lifecycle
+
+- Remove eager physical file creation from module import.
+- Module-level logger variables may use named logger objects, but handler
+  configuration happens after the worker logging queue is installed.
+- Add a pool initializer or explicit worker initialization that installs the
+  shared queue before `main` starts logging.
+- Start the listener in `multi_chrome` before constructing the Pool.
+- Put listener shutdown in the existing `finally` path.
+- Unit tests and direct helper usage may install a synchronous/local router so
+  importing `new_lander.py` does not require a multiprocessing listener.
+
+======================================================================
+5. CONFIGURATION
+======================================================================
+
+Add these settings under `default_settings` in `config.yaml`:
+
+LOG_DAILY_FOLDERS: true
+LOG_TIMEZONE: "Asia/Kolkata"
+LOG_DATE_FORMAT: "%d-%m-%Y"
+LOG_MAX_BYTES: 52428800
+LOG_BACKUP_COUNT: 50
+LOG_QUEUE_MAX_RECORDS: 20000
+LOG_QUEUE_PUT_TIMEOUT_SECONDS: 2
+LOG_HANDLER_IDLE_SECONDS: 3600
+LOG_RETENTION_DAYS: 0
+
+Rules:
+
+- `LOG_RETENTION_DAYS: 0` means no deletion.
+- Invalid timezone configuration must fail fast at startup with a clear error;
+  it must not silently use UTC or another date.
+- `LOG_DATE_FORMAT` must be validated to produce a single safe directory name.
+- The date switch must not depend on a sleeping midnight scheduler; routing by
+  each record timestamp is more reliable and directly testable.
+
+======================================================================
+6. IMPLEMENTATION PHASES
+======================================================================
+
+PHASE 1 - Logging path and routing primitives
+
+1. Add safe root/filename validation.
+2. Add timestamp-to-date conversion using the configured timezone.
+3. Add `DailyDirectoryRouter` with size rotation and handler cleanup.
+4. Preserve raw JSON-line versus formatted log output.
+
+Exit criteria:
+
+- Synthetic records on opposite sides of midnight go to different folders.
+- A delayed pre-midnight record still goes to the previous folder.
+- Filename validation prevents path traversal.
+
+PHASE 2 - Multiprocessing queue integration
+
+1. Add the worker queue handler.
+2. Add listener startup, routing, draining, and shutdown helpers.
+3. Pass/install the queue through the multiprocessing Pool initializer.
+4. Make repeated logger setup idempotent.
+5. Ensure a logging failure never exits a scraper worker.
+
+Exit criteria:
+
+- Several spawned processes can write concurrently with no missing, duplicated,
+  merged, or corrupt records.
+- Only the listener process owns the destination file handlers.
+
+PHASE 3 - Integrate `new_lander.py`
+
+1. Replace direct `RotatingFileHandler` creation in `setup_logger`.
+2. Route all four shared streams to `logs/<date>/`.
+3. Route per-worker lander streams to `logs/<date>/`.
+4. Route per-worker error streams to `er_logs/<date>/`.
+5. Remove import-time creation of flat physical files.
+6. Preserve the logger names consumed by existing functions.
+7. Remove the global UTC formatter override and use the configured formatter.
+8. Flush and stop logging infrastructure from `multi_chrome` shutdown.
+
+Exit criteria:
+
+- `python new_lander.py` creates no new flat files under `logs` or `er_logs`.
+- A continuously running process changes destination at local midnight.
+
+PHASE 4 - Reader/tool compatibility
+
+1. Add a shared resolver that can locate:
+   - a requested date;
+   - today's log;
+   - the newest available dated log;
+   - all date folders for a date range.
+2. Update active audit/test utilities that currently assume flat paths.
+3. Keep an explicit path CLI argument working unchanged.
+4. Update printed help/output paths.
+5. Do not modify legacy lander entry points unless explicitly requested.
+
+Exit criteria:
+
+- Analysis and log validation tools can read the new layout.
+- An explicit historical dated path remains readable.
+
+PHASE 5 - Documentation and rollout
+
+1. Document the daily folder layout and timezone behavior in README.md.
+2. Document graceful shutdown and hard-kill limitations.
+3. Preserve old flat files as historical data.
+4. Enable daily folders first in development mode.
+5. Run an accelerated rollover test before production rollout.
+
+======================================================================
+7. TESTING PLAN
+======================================================================
+
+A. Unit tests
+
+1. Record at 24-10-2026 23:59:59.999 Asia/Kolkata is stored under
+   `24-10-2026`.
+2. Record at 25-10-2026 00:00:00.000 is stored under `25-10-2026`.
+3. A late-arriving record with the previous day's `created` timestamp remains
+   in the previous day.
+4. A process started before midnight writes later records to the new day.
+5. Raw JSON logs contain exactly one JSON object per line with no prefix.
+6. Standard logs keep the current timestamp/level/logger prefix.
+7. Repeated `setup_logger` calls do not duplicate a line.
+8. Size rollover stays inside the correct date directory.
+9. Invalid timezone fails fast.
+10. Unsafe filenames and roots are rejected.
+11. Existing dated folders are appended to after restart.
+12. Listener shutdown flushes the final queued record.
+
+B. Multiprocessing integration tests
+
+1. Spawn at least four processes.
+2. Each process writes a known sequence to every shared stream.
+3. Verify exact expected record counts and unique IDs.
+4. Verify that every JSON line parses successfully.
+5. Force small `max_bytes` and confirm rotation without rename races.
+6. Mix timestamps from two dates concurrently and verify correct routing.
+7. Terminate one producer and verify other producers/listener continue.
+8. Perform graceful shutdown and verify queue drain.
+
+C. Accelerated midnight test
+
+Do not wait for real midnight. Inject LogRecords with controlled timestamps:
+
+- 23:59:58 on day one
+- 23:59:59 on day one
+- 00:00:00 on day two
+- 00:00:01 on day two
+- one delayed 23:59:59 record after the day-two records
+
+Expected result:
+
+- The first, second, and delayed record are in day one.
+- The third and fourth records are in day two.
+- No process restart occurs.
+
+D. Local smoke test
+
+1. Start the logging listener and worker pool in development mode.
+2. Process deterministic/local sample ads only.
+3. Confirm all expected files appear beneath today's folder.
+4. Confirm no new flat log files are created.
+5. Confirm `analysis.py` and logging-stream tests resolve today's directory.
+6. Stop gracefully and verify the last records are present.
+
+E. Production-like soak test
+
+1. Run across a real local midnight in the production container/VM timezone.
+2. Verify old-day file sizes stop growing after midnight except for valid late
+   queued records.
+3. Verify new-day files begin receiving records immediately.
+4. Monitor listener health, queue depth, memory, disk usage, and dropped-record
+   warnings.
+5. Run for at least three calendar days and verify three date folders.
+
+======================================================================
+8. FAILURE AND EDGE CASES
+======================================================================
+
+1. Abrupt OS/process kill can lose records still waiting in memory. Graceful
+   shutdown drains them; absolute durability across a hard kill would require
+   a disk-backed logging queue and is outside this change.
+2. A system clock correction is handled by routing from each record timestamp.
+3. Asia/Kolkata has no daylight-saving transition, but timezone-aware routing
+   must still be used.
+4. Disk full, permission failure, invalid path, listener death, and queue-full
+   conditions must be visible on stderr without recursively logging the error.
+5. Midnight plus size rotation at the same instant must produce valid files in
+   the correct date folders.
+6. A worker started after midnight must join the same listener and date layout.
+7. Old flat files remain untouched and are not mixed into new dated output.
+
+======================================================================
+9. ACCEPTANCE CRITERIA
+======================================================================
+
+The change is complete only when all of the following are true:
+
+1. One uninterrupted run spanning three dates produces three correctly named
+   folders.
+2. Every record is routed according to its Asia/Kolkata creation date.
+3. `logs` and `er_logs` both follow the dated layout.
+4. Shared streams are written by one listener, not competing worker handlers.
+5. JSON-line streams remain parseable and standard logs retain formatting.
+6. Size rotation continues to work independently within each date.
+7. Graceful shutdown drains and closes logging cleanly.
+8. Active analysis and test utilities understand the new paths.
+9. No pre-existing flat logs are deleted or moved.
+10. All unit, multiprocessing, accelerated-rollover, existing scraper, and
+    local smoke tests pass.
+
+======================================================================
+10. RECOMMENDED IMPLEMENTATION ORDER
+======================================================================
+
+1. Add and unit-test `helper/daily_logging.py`.
+2. Add multiprocessing concurrency and simulated-midnight tests.
+3. Integrate listener lifecycle into `new_lander.py`.
+4. Route every active stream and remove import-time physical file creation.
+5. Update active readers and test utilities.
+6. Update configuration and README documentation.
+7. Run the entire existing 18-test lander suite plus the new logging tests.
+8. Run a development-mode local smoke test.
+9. Run a real-midnight production-like soak before production enablement.
+
+This plan intentionally avoids a timer thread that wakes at midnight and avoids
+one file handler per worker. Timestamp-based routing through one writer is the
+design that reliably satisfies day ownership and multiprocessing safety.

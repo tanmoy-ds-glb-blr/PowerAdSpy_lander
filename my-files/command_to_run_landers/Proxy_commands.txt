@@ -1,0 +1,6 @@
+curl.exe -v `
+  --proxy "http://brd.superproxy.io:44445" `
+  --proxy-user "$($env:BRIGHT_DATA_CUSTOMER)-zone-isp_proxy1-country-in:$($env:BRIGHT_DATA_PASSWORD)" `
+  --connect-timeout 15 `
+  --max-time 30 `
+  "https://lumtest.com/myip.json"

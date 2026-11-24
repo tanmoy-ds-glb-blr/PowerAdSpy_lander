@@ -1,0 +1,1435 @@
+POWERADSPY LANDER SCRAPER
+COMPLETE IMPLEMENTATION AND TESTING PLAN
+
+Document: iplemetation-oct-24-1PM.txt
+Prepared: 24 October 2026, 1:00 PM (Asia/Calcutta)
+Scope: new_lander.py and the active helper modules used by it
+Status: Planning document only; no application-code changes are included
+
+======================================================================
+1. PURPOSE
+======================================================================
+
+Build a reliable, observable and bounded landing-page capture pipeline that:
+
+1. Gets an advertisement from the GET API.
+2. Opens the destination with the correct network, country and browser context.
+3. Determines whether the destination is usable, blocked, dead or login-gated.
+4. Waits for meaningful page content, images, fonts, frames and dynamic widgets.
+5. Captures the page without unnecessarily changing its real appearance.
+6. Handles long pages, internal scrollers and infinite feeds without hanging.
+7. Produces a valid JPEG no larger than the configured upload limit.
+8. Extracts text, redirects, outgoing URLs and an HTML archive consistently.
+9. Uploads media and the final payload with safe retries and clear outcomes.
+10. Acknowledges/removes work only after a terminal backend result is confirmed.
+
+The implementation must improve general behavior rather than adding more
+one-off patches for individual websites.
+
+======================================================================
+2. DEFINITIONS OF SUCCESS
+======================================================================
+
+A scrape is SUCCESS/FULL only when all of the following are true:
+
+- Navigation reached a valid final page.
+- Page classification was performed against the unmodified page.
+- The readiness policy completed or returned an explicitly accepted degraded
+  state.
+- The screenshot passed visual and file validation.
+- The screenshot represents the requested capture range and is not an
+  unreported viewport fallback.
+- The media upload API confirmed success and returned the required path.
+- The insert API confirmed success.
+- The queue item was acknowledged only after the confirmed insert.
+
+A scrape is SUCCESS/PARTIAL only when business rules explicitly permit a
+bounded or degraded result, for example a page longer than the configured
+maximum capture height. The payload must state why it is partial.
+
+A scrape is FAILED/TERMINAL only after the applicable retry policy is exhausted
+and the status=3 insert has itself been confirmed.
+
+No exception, timeout, viewport fallback, cropped page or missing iframe may be
+silently reported as a complete success.
+
+======================================================================
+3. GUIDING DESIGN RULES
+======================================================================
+
+R1. Observe first, modify only when necessary.
+R2. Keep classification and extraction independent from screenshot repair.
+R3. Replace fixed sleeps with bounded condition-based waits.
+R4. Every loop must have time, step and size limits.
+R5. Never scroll every scrollable element indiscriminately.
+R6. Use a fresh page for a repair attempt after destructive DOM changes.
+R7. Treat frames as first-class page content.
+R8. Store the real navigation response and browser redirect chain.
+R9. A fallback result must be labelled as a fallback.
+R10. Validate outputs, not merely the absence of an exception.
+R11. Every external call must have timeout, retry and idempotency rules.
+R12. Preserve evidence until the final insert is confirmed.
+R13. Prefer configuration and feature flags over site-specific source edits.
+R14. Logs must explain which stage failed without exposing credentials or
+     sensitive query-string data.
+
+======================================================================
+4. TARGET PIPELINE
+======================================================================
+
+Use a named stage model. Each stage returns a typed result containing status,
+reason, timing, diagnostics and produced artifacts.
+
+Stage 01 - Acquire
+  Read and validate the GET API item. Assign a scrape_run_id and queue lease.
+
+Stage 02 - Browser profile
+  Resolve country, proxy, viewport/device profile, locale, timezone, user-agent
+  and browser launch configuration.
+
+Stage 03 - Navigate
+  Navigate while recording the main response, redirect chain, request failures,
+  popup/new-page activity, console errors and frame attachment events.
+
+Stage 04 - Readiness
+  Wait for meaningful DOM, layout stability, fonts, visible images and relevant
+  frames under a single overall time budget.
+
+Stage 05 - Immutable observation
+  Before screenshot repair, capture final URL, title, response status, original
+  main HTML, main text, frame inventory/text, login/block classification and DOM
+  measurements.
+
+Stage 06 - Capture planning
+  Detect the page model: normal document, primary internal scroller, long bounded
+  document, virtualized/infinite feed, map/canvas application, or unsupported
+  document/download.
+
+Stage 07 - Screenshot capture
+  Attempt the least invasive capture mode first. Apply narrowly scoped repair
+  only after a failed validation, preferably on a fresh page.
+
+Stage 08 - Screenshot validation and compression
+  Validate completeness signals, dimensions and visual content. Encode and
+  verify the final byte limit.
+
+Stage 09 - Data extraction/archive
+  Build text, redirect, outgoing-link and HTML artifacts from the immutable
+  observation, not from the modified screenshot DOM.
+
+Stage 10 - Media upload
+  Upload screenshot and optional archive using bounded retries and idempotency.
+
+Stage 11 - Insert result
+  Insert the final status=2/status=3 payload and validate the backend response.
+
+Stage 12 - Acknowledge and cleanup
+  Acknowledge the queue lease and delete temporary artifacts only after a
+  confirmed terminal backend result.
+
+======================================================================
+5. DATA MODELS TO INTRODUCE
+======================================================================
+
+5.1 ScrapeJob
+
+- ad_id
+- destination_url
+- country_iso
+- source_network
+- device_hint, if supplied by the API
+- scrape_run_id (UUID)
+- attempt_number
+- acquired_at
+- queue_lease_expires_at
+
+5.2 NavigationResult
+
+- requested_url
+- navigation_url
+- final_url
+- main_response_status
+- browser_redirect_chain
+- pre_resolution_chain
+- selected_page_id
+- popup_pages_seen
+- load_state_reached
+- navigation_error
+- elapsed_ms
+
+5.3 ReadinessResult
+
+- state: ready, degraded, timed_out, blocked or failed
+- dom_content_loaded
+- meaningful_dom_present
+- stable_layout_samples
+- pending_visible_images
+- failed_visible_images
+- fonts_ready
+- frame_count
+- frames_ready
+- frames_failed
+- network_inflight_relevant
+- elapsed_ms
+- reasons[]
+
+5.4 FrameResult
+
+- frame_id
+- parent_frame_id
+- url_without_sensitive_query
+- name
+- bounding_box
+- visible
+- load_state
+- body_text_length
+- image_count
+- pending_image_count
+- request_failure_count
+- probable_ad_frame
+- blank_or_no_fill
+- error
+
+5.5 CapturePlan
+
+- mode: native_full, primary_scroller, tiled_document, viewport_only or rejected
+- primary_scroller_selector/handle
+- initial_document_height
+- maximum_capture_height
+- maximum_capture_width
+- maximum_scroll_steps
+- maximum_scroll_time_ms
+- reason
+
+5.6 CaptureResult
+
+- state: full, partial, viewport_fallback or failed
+- image_path
+- raw_width/raw_height
+- final_width/final_height
+- final_bytes
+- capture_mode
+- captured_height
+- detected_document_height
+- truncated
+- truncation_reason
+- visual_validation scores
+- repair_level_used
+- elapsed_ms
+
+5.7 ArtifactResult
+
+- screenshot upload state/path
+- HTML archive state/path/size
+- text length/truncated flag
+- cleanup state
+
+5.8 StageResult
+
+Every stage records:
+
+- stage_name
+- started_at/finished_at/elapsed_ms
+- outcome
+- reason_code
+- safe diagnostic details
+
+======================================================================
+6. CONFIGURATION AND FEATURE FLAGS
+======================================================================
+
+Add configuration with conservative defaults. Validate values at startup.
+
+CAPTURE_MODE: auto
+CAPTURE_MAX_HEIGHT: 12000
+CAPTURE_MAX_WIDTH: 1920
+CAPTURE_MAX_SCROLL_STEPS: 20
+CAPTURE_MAX_SCROLL_SECONDS: 45
+CAPTURE_STEP_VIEWPORT_RATIO: 0.75
+CAPTURE_LAYOUT_STABLE_SAMPLES: 3
+CAPTURE_LAYOUT_SAMPLE_INTERVAL_MS: 500
+PAGE_READY_TIMEOUT_SECONDS: 30
+FRAME_READY_TIMEOUT_SECONDS: 12
+AD_FRAME_SETTLE_SECONDS: 5
+VISIBLE_IMAGE_TIMEOUT_SECONDS: 12
+OVERALL_SCRAPE_TIMEOUT_SECONDS: 240
+SCREENSHOT_MAX_BYTES: 1048576
+SCREENSHOT_MIN_WIDTH: 960
+SCREENSHOT_MIN_QUALITY: 45
+SCREENSHOT_ALLOW_PARTIAL: true/false per network policy
+SCREENSHOT_ALLOW_VIEWPORT_FALLBACK: false by default
+HTML_ARCHIVE_ENABLED: true
+HTML_ARCHIVE_MAX_BYTES: 15728640
+HTML_ASSET_MAX_BYTES: per-resource limit
+HTML_TOTAL_ASSET_MAX_BYTES: aggregate limit
+HTML_ASSET_WORKERS: bounded concurrency
+UPLOAD_MAX_ATTEMPTS: 3
+INSERT_MAX_ATTEMPTS: 3
+QUEUE_LEASE_SECONDS: greater than overall scrape timeout
+DIAGNOSTIC_ARTIFACT_RETENTION_HOURS: configured value
+CAPTURE_IMPLEMENTATION_VERSION: v1 or v2
+
+Keep the existing implementation behind a temporary feature flag during the
+canary rollout. Remove it after the new path meets the exit criteria.
+
+======================================================================
+7. IMPLEMENTATION PHASES
+======================================================================
+
+---------------------------------------------------------------------
+PHASE 0 - BASELINE, SAFETY AND REPRODUCIBILITY
+---------------------------------------------------------------------
+
+Objective:
+  Establish measurable current behavior before changing capture logic.
+
+Tasks:
+
+1. Create a dedicated development branch and tag the current baseline.
+2. Move proxy/API credentials to environment variables or a secret store.
+3. Rotate credentials already exposed in source, terminal output or logs.
+4. Define a sanitized sample-ad corpus with:
+   - normal static pages
+   - React/Vue/Angular pages
+   - long pages
+   - infinite feeds
+   - nested scroll containers
+   - same-origin and cross-origin iframes
+   - advertising iframes
+   - maps/canvas/video pages
+   - cookie/consent overlays
+   - login/guest walls
+   - blocked/WAF pages
+   - PDFs/downloads
+5. Run the current implementation against the corpus three times in the same
+   Docker environment used by production.
+6. Record baseline metrics defined in Section 10.
+7. Save representative failed screenshots and stage logs as test evidence.
+
+Exit criteria:
+
+- Baseline corpus and expected result categories are approved.
+- Credentials are not present in committed code or planning/test output.
+- Every reported symptom has at least one deterministic fixture or controlled
+  reproduction case whenever technically possible.
+
+---------------------------------------------------------------------
+PHASE 1 - OBSERVABILITY AND STAGE RESULTS
+---------------------------------------------------------------------
+
+Objective:
+  Make every incomplete load and fallback diagnosable before changing behavior.
+
+Tasks:
+
+1. Introduce scrape_run_id and attempt_number in logs.
+2. Implement StageResult timing around all 12 pipeline stages.
+3. Register Playwright listeners before navigation:
+   - requestfailed
+   - response for main document and selected resource types
+   - frameattached/framenavigated/framedetached
+   - pageerror
+   - console warning/error
+   - popup/new page
+   - crash and close
+4. Retain only sanitized URLs; remove credentials and sensitive query values.
+5. Record the main navigation response returned by page.goto().
+6. Record document height, primary scroller candidates, visible image state,
+   frame state and capture dimensions.
+7. Add explicit reason codes, for example:
+   NAV_TIMEOUT, NAV_PROXY_407, NAV_DNS, PAGE_BLOCKED, PAGE_LOGIN_GATE,
+   READY_TIMEOUT, FRAME_TIMEOUT, IMAGE_TIMEOUT, INFINITE_LIMIT_REACHED,
+   CAPTURE_NATIVE_FAILED, CAPTURE_VISUAL_BLANK, CAPTURE_PARTIAL,
+   COMPRESSION_LIMIT_FAILED, MEDIA_UPLOAD_FAILED, INSERT_FAILED and
+   STATUS3_INSERT_FAILED.
+8. Store bounded diagnostic artifacts on failure:
+   - viewport screenshot before repair
+   - DOM/frame manifest
+   - stage-result JSON
+   Never upload these as production results unless configured.
+
+Exit criteria:
+
+- A failed corpus case identifies a specific stage and reason code.
+- Logs contain no proxy passwords, authorization headers or sensitive payloads.
+- Metrics distinguish full, partial, viewport fallback and failed captures.
+
+---------------------------------------------------------------------
+PHASE 2 - NAVIGATION AND BROWSER-CONTEXT CORRECTNESS
+---------------------------------------------------------------------
+
+Objective:
+  Reach the same destination consistently and retain authoritative navigation
+  information.
+
+Tasks:
+
+1. Keep the response object returned by page.goto(); do not infer status only
+   through Navigation Timing.
+2. Record redirects through browser request/response events.
+3. Use one egress policy for wrapper resolution and browser navigation.
+   Pre-resolution must use the configured requests session/proxy or be removed
+   when the browser can safely follow the wrapper itself.
+4. Add typed navigation retry rules:
+   - retry transient timeout, connection reset, DNS temporary failure, HTTP/2
+     protocol failure and selected 429/5xx conditions
+   - do not retry deterministic 404/410, login gates or policy blocks
+   - use exponential backoff plus jitter
+   - enforce the overall scrape deadline
+5. Track popups/new pages. Select the capture page using deterministic rules:
+   valid HTTP(S) URL, visible meaningful content, recent navigation and
+   relationship to the requested destination.
+6. Replace the fixed Chrome 128 user-agent with a user-agent aligned to the
+   actual browser major version.
+7. Derive locale/timezone from country configuration.
+8. Support desktop/mobile profiles when source metadata supplies a device hint.
+9. Remove --disable-gpu by default. Keep a tested container-specific fallback
+   only if the runtime cannot support the selected headless rendering mode.
+10. Review --disable-features=IsolateOrigins,site-per-process and remove it
+    unless a documented test proves it is required.
+11. Make proxy bypass rules explicit. Avoid sending Google/ad iframe traffic
+    through a different public IP unless that behavior is deliberately required.
+12. Confirm egress before processing a batch, not necessarily once per ad.
+
+Exit criteria:
+
+- Main HTTP status and redirect chain are taken from browser events.
+- Proxy country, browser locale/timezone and ad-resource egress are consistent.
+- Popup fixture selects the correct page.
+- Map/canvas fixture renders in the production container.
+
+---------------------------------------------------------------------
+PHASE 3 - READINESS COORDINATOR
+---------------------------------------------------------------------
+
+Objective:
+  Replace arbitrary waiting with bounded evidence that meaningful content is
+  ready to capture.
+
+Tasks:
+
+1. Implement a PageReadinessCoordinator with one overall deadline.
+2. Wait for DOMContentLoaded, but do not require global networkidle because
+   analytics, video, WebSocket and ad refresh traffic may never become idle.
+3. Define relevant in-flight requests. Ignore known long-lived/low-value types
+   such as analytics beacons and WebSockets after configuration review.
+4. Require meaningful DOM content:
+   visible text, visible media, canvas, SVG, iframe or a recognized application
+   surface.
+5. Measure layout stability using document height and visible-element bounding
+   boxes over multiple samples.
+6. Wait for document.fonts.ready under the readiness deadline.
+7. Wait for visible images using complete, naturalWidth and decode() where
+   supported. Do not wait for invisible tracking pixels.
+8. Track failed image requests separately from pending images.
+9. Add bounded readiness adapters for:
+   - SPA hydration/root population
+   - lazy-loaded sections
+   - map/canvas surface appearance
+   - known form/widget initialization
+   Do not hard-code individual brands unless implemented as optional adapters.
+10. Re-check final URL, main response and blocked/login state after readiness.
+11. Return READY_DEGRADED with reasons when policy allows capture despite a
+    limited number of failed non-critical resources.
+
+Exit criteria:
+
+- Delayed-SPA fixture is never captured before its content appears.
+- Never-idle fixture completes within its time budget.
+- Failed analytics do not block capture.
+- Failed hero image produces a degraded/failure reason rather than silent
+  success.
+
+---------------------------------------------------------------------
+PHASE 4 - FRAME AND ADVERTISEMENT READINESS
+---------------------------------------------------------------------
+
+Objective:
+  Make iframe state visible and give relevant frames a bounded opportunity to
+  render.
+
+Tasks:
+
+1. Build a recursive frame inventory from Playwright Frame objects.
+2. For each visible frame:
+   - record URL/name/parent/bounds
+   - wait for DOMContentLoaded when possible
+   - check body/content presence
+   - check visible images inside the frame
+   - capture frame request failures
+3. Distinguish same-origin, cross-origin, sandboxed, detached and inaccessible
+   frames in diagnostics. Playwright frame APIs should be preferred to main-page
+   JavaScript assumptions.
+4. Classify probable ad frames from URL, element attributes and dimensions.
+5. Apply a bounded ad-settle window after the frame is attached or navigated.
+6. Detect obvious ad no-fill/blank outcomes without treating all white creative
+   designs as failures. Combine DOM state, request results and pixel/content
+   signals rather than relying on color alone.
+7. Scroll a frame only when it is the principal visible content surface and its
+   own document is intended to be captured. Do not scroll ordinary ad slots.
+8. Handle nested frames recursively with depth and count limits.
+9. Include frame diagnostics in CaptureResult and logs.
+10. Document that external ad inventory cannot be guaranteed; a valid no-fill,
+    geo restriction or vendor policy is an observable outcome, not necessarily
+    a scraper defect.
+
+Exit criteria:
+
+- Same-origin and cross-origin delayed-frame fixtures render in screenshots.
+- Nested-frame fixture is inventoried correctly.
+- Broken-frame fixture reports the failed frame without hanging the page.
+- Simulated ad no-fill is distinguished from an ad-frame load timeout.
+
+---------------------------------------------------------------------
+PHASE 5 - IMMUTABLE CLASSIFICATION AND EXTRACTION
+---------------------------------------------------------------------
+
+Objective:
+  Prevent screenshot cleanup from changing classification, text or archived
+  content.
+
+Tasks:
+
+1. Immediately after readiness, collect an immutable observation snapshot:
+   final URL, title, main HTML, main visible text, frame text, frame manifest,
+   response status and DOM metrics.
+2. Run blocked/dead/login/status-3 classification against that snapshot.
+3. Replace literal backspace characters in login regular expressions with real
+   regex word boundaries and add regression tests.
+4. Do not remove login/auth evidence before classification.
+5. Extract outgoing URLs from the original main DOM plus eligible frame DOMs.
+6. Do not issue extra GET requests merely to discover redirects if browser
+   events already contain them.
+7. Keep final_url synchronized after readiness and before the snapshot.
+8. If screenshot preparation causes navigation, treat it as a capture-side
+   event; do not silently replace the original classification target.
+
+Exit criteria:
+
+- Login fixture remains status=3 even if a later screenshot repair hides its
+  dialog.
+- Original HTML/text hashes remain unchanged by capture repair.
+- URL-path login tests cover login, log-in, signin, sign-in, signup, sign-up,
+  registration and common account paths.
+
+---------------------------------------------------------------------
+PHASE 6 - PAGE MODEL AND BOUNDED SCROLLING
+---------------------------------------------------------------------
+
+Objective:
+  Handle normal documents, internal scrollers and infinite feeds predictably.
+
+Tasks:
+
+1. Identify the document scrolling element and rank primary internal scroller
+   candidates using viewport coverage, visible content and scroll range.
+2. Select one primary scroll target. Never assign scrollTop to every element.
+3. Implement a ScrollController with hard limits:
+   - maximum elapsed time
+   - maximum number of steps
+   - maximum capture height
+   - maximum DOM-node growth
+   - maximum consecutive steps with no meaningful new content
+4. Use a step based on viewport height rather than a fixed 800 pixels.
+5. After each step, wait only for relevant new content within a short bounded
+   period.
+6. Detect meaningful growth using a combination of:
+   - content/document height
+   - visible element count
+   - normalized text/content hashes
+   - new image/frame attachments
+7. Stop when:
+   - the bottom is reached
+   - content is stable for N checks
+   - the same content signature repeats
+   - guest/auth wall is reached
+   - any safety budget is exhausted
+8. Label budget exhaustion as PARTIAL/TRUNCATED rather than full success.
+9. Avoid a final operation that sends every nested scroller to its bottom.
+10. Restore the selected scroll target to its required capture position only;
+    do not rely on broad global scroll events.
+
+Exit criteria:
+
+- Infinite fixture completes within configured time/step limits every run.
+- Nested-scroller fixture scrolls only the selected content surface.
+- Short pages incur no unnecessary progressive-scroll delay.
+- Long bounded fixture is either fully captured or explicitly marked partial.
+
+---------------------------------------------------------------------
+PHASE 7 - TIERED, NON-DESTRUCTIVE CAPTURE
+---------------------------------------------------------------------
+
+Objective:
+  Capture the most faithful page possible and isolate repairs from original
+  evidence.
+
+Capture tiers:
+
+Tier 0 - Diagnostic viewport
+  Capture an untouched viewport image for comparison and failure evidence.
+
+Tier 1 - Native bounded document capture
+  Use for stable documents whose measured dimensions are within safe limits.
+
+Tier 2 - Primary-scroller capture
+  Use when a single application container, not the document, owns scrolling.
+  Apply narrowly scoped styles only to the selected container if required.
+
+Tier 3 - Tiled/segmented document capture
+  Use for pages where native full-page capture is unsafe. Capture bounded clips
+  or viewport tiles, then stitch deterministically. Handle repeated fixed/sticky
+  headers so they are not duplicated in every tile.
+
+Tier 4 - Targeted repair retry
+  Reload into a fresh capture page and apply only the repair indicated by the
+  failed validation: lazy image trigger, animation freeze, consent dismissal or
+  primary-container adjustment. Do not run all repairs by default.
+
+Implementation tasks:
+
+1. Measure page dimensions before asking Chromium for a screenshot.
+2. Never request an unbounded full_page screenshot and crop it afterwards.
+3. Split the current universal script into narrow, individually flagged repair
+   functions.
+4. Remove generic global rules such as forcing all elements to
+   content-visibility:visible or all ancestors to height:auto from the default
+   path.
+5. Do not force every carousel/slide/animation into a visible state.
+6. Preserve legitimate modals and auth dialogs. Consent handling must use an
+   allowlisted provider adapter plus a conservative generic fallback.
+7. Choose one configured consent decision, not both Accept and Reject.
+8. Do not emit synthetic click/keydown/touch events globally. Trigger only the
+   minimum event required for a specific lazy-loader adapter.
+9. Keep a mutation journal for every repair applied.
+10. If full capture fails, do not silently return a viewport image. Return a
+    labelled fallback only when business policy allows it.
+
+Exit criteria:
+
+- Standard fixture is captured without DOM mutation.
+- Repair fixtures record exactly which repair was used.
+- Full-page timeout cannot be reported as full success.
+- Capturing a page never exceeds the configured raw dimension/memory budget.
+
+---------------------------------------------------------------------
+PHASE 8 - SCREENSHOT QUALITY VALIDATION
+---------------------------------------------------------------------
+
+Objective:
+  Detect blank, incomplete, loader-only and structurally invalid screenshots.
+
+Tasks:
+
+1. Validate file decoding and JPEG format.
+2. Validate expected width/height and captured-height coverage.
+3. Calculate bounded visual signals:
+   - luminance variance/entropy
+   - percentage of near-uniform pixels
+   - edge/content density
+   - above-fold versus lower-page content presence
+4. Compare screenshot evidence with DOM evidence:
+   a DOM containing substantial visible content must not produce a nearly blank
+   screenshot.
+5. Detect persistent skeletons, preloaders and loading text using DOM state plus
+   image signals.
+6. Validate important visible frames by checking that their screenshot regions
+   are not unexpectedly blank when frame diagnostics report content.
+7. Record quality scores; avoid one universal hard threshold for every page.
+8. On failure, select one targeted repair and retry on a fresh page up to a
+   configured maximum.
+9. Mark truncated, repaired and fallback results explicitly in payload metadata
+   where backend schema permits; otherwise record them in logs/metrics and map
+   them to the agreed status policy.
+
+Exit criteria:
+
+- White-page and black-canvas fixtures fail visual validation.
+- Legitimate minimalist/mostly-white fixture does not become a false failure.
+- DOM-rich but screenshot-blank fixture triggers a repair or explicit failure.
+
+---------------------------------------------------------------------
+PHASE 9 - DETERMINISTIC COMPRESSION
+---------------------------------------------------------------------
+
+Objective:
+  Guarantee the final screenshot byte limit without silent quality collapse.
+
+Tasks:
+
+1. Flatten transparency onto a configured background before JPEG encoding.
+2. Encode at original accepted dimensions and use binary search for JPEG quality
+   before resizing.
+3. If minimum quality is reached, reduce dimensions in controlled steps while
+   preserving aspect ratio and minimum readable width.
+4. Re-run size measurement after every encoding.
+5. Assert final_bytes <= SCREENSHOT_MAX_BYTES before returning success.
+6. If the limit cannot be achieved within quality/dimension policy, return
+   COMPRESSION_LIMIT_FAILED. Do not upload an oversized image.
+7. Record original dimensions, final dimensions, quality and byte count.
+8. Define whether the backend limit is 1,000,000 bytes or 1,048,576 bytes and
+   use exactly that agreed value.
+9. Do not use blank-space pixel sampling as the primary fix for layout bugs.
+   If trailing trim is retained, make it conservative and test it against sparse
+   footers, centered content, dark pages and gradients.
+
+Exit criteria:
+
+- Every successful screenshot is at or below the exact configured byte limit.
+- Text remains readable at the configured minimum width.
+- Sparse footer fixture is never cropped.
+
+---------------------------------------------------------------------
+PHASE 10 - HTML ARCHIVE AND DATA CONSISTENCY
+---------------------------------------------------------------------
+
+Objective:
+  Produce a bounded archive that is internally consistent and does not corrupt
+  URLs when assets fail.
+
+Tasks:
+
+1. Build the archive from the immutable observation snapshot.
+2. Do not rewrite an asset URL until its download succeeds.
+3. Generate unique filenames from a hash of the canonical URL plus safe suffix,
+   preventing basename collisions.
+4. Apply per-resource, total-byte, resource-count and total-time limits.
+5. Download assets with bounded concurrency rather than long sequential loops.
+6. Validate Content-Type and maximum response bytes while streaming.
+7. Preserve unresolved remote URLs when an asset cannot be archived.
+8. Archive eligible iframe HTML separately with a manifest linking parent and
+   child frames. Record inaccessible frames without pretending they were saved.
+9. Decide and document support for CSS url() dependencies, fonts, videos,
+   background images and dynamic API data. Unsupported content must be listed in
+   the manifest.
+10. Do not bypass the configured proxy silently during asset download.
+11. Prevent local/private/network-metadata URL access during server-side asset
+    fetching and validate redirect destinations.
+12. Validate ZIP integrity and byte limit before upload.
+
+Exit criteria:
+
+- Failed assets retain their original URLs in archived HTML.
+- Duplicate-basename fixture stores both assets correctly.
+- Oversized resource fixture stops at the configured limit.
+- ZIP opens successfully and includes a manifest of saved/failed resources.
+
+---------------------------------------------------------------------
+PHASE 11 - UPLOAD, INSERT, QUEUE AND CLEANUP RELIABILITY
+---------------------------------------------------------------------
+
+Objective:
+  Prevent successful screenshots from being lost and prevent failed work from
+  being acknowledged prematurely.
+
+Tasks:
+
+1. Add bounded exponential retry with jitter for transient media upload and
+   insert failures: timeout, connection reset, 429 and selected 5xx responses.
+2. Respect Retry-After when present.
+3. Do not retry deterministic validation/authentication errors without a state
+   change.
+4. Add an idempotency key based on ad_id + scrape_run_id + operation.
+5. Validate both HTTP status and documented JSON success fields.
+6. Make status=3 sender return a success/failure result and validate it exactly
+   like status=2 insertion.
+7. Retain local artifacts until the final insert succeeds or the retention
+   policy moves them into a recoverable failure directory.
+8. Replace pop-and-complete queue behavior with lease/ack semantics:
+   - acquire/lease
+   - renew when a long scrape is active
+   - ack only after confirmed terminal insertion
+   - requeue after retryable failure or expired lease
+9. Do not add failed jobs to the cooldown-completed set unless backend status=3
+   was confirmed and that is the agreed terminal business outcome.
+10. Persist attempt state atomically so process crashes do not lose ads.
+11. Add a dead-letter state after the configured attempt maximum.
+12. Ensure cleanup is scoped to the exact scrape_run_id directory.
+
+Exit criteria:
+
+- A process killed during capture/upload is safely retried after lease expiry.
+- Duplicate insert attempts do not create duplicate backend records.
+- HTTP 500/429 fixtures retry and eventually succeed/fail as configured.
+- Failed status=3 insert is visible and the job is not falsely completed.
+
+---------------------------------------------------------------------
+PHASE 12 - RESOURCE MANAGEMENT AND CONCURRENCY
+---------------------------------------------------------------------
+
+Objective:
+  Keep the service stable under multiple workers and pathological pages.
+
+Tasks:
+
+1. Add one overall deadline that every nested wait and external call respects.
+2. Track per-worker browser processes, pages, memory, CPU and open handles.
+3. Guarantee page/context/browser/Playwright cleanup through one lifecycle
+   owner, even when exceptions occur.
+4. Limit simultaneous browsers based on measured container memory rather than a
+   fixed maximum of 50.
+5. Add backpressure when upload or GET APIs are unhealthy.
+6. Set bounded diagnostic/artifact retention and disk-usage limits.
+7. Use multiprocess-safe logging or per-worker structured logs.
+8. Never kill unrelated system Chrome processes during normal recovery.
+
+Exit criteria:
+
+- Long soak test shows no monotonic browser-process, handle, memory or disk leak.
+- One stuck page cannot exceed the overall deadline.
+- Stopping workers does not terminate unrelated Chrome sessions.
+
+---------------------------------------------------------------------
+PHASE 13 - CANARY ROLLOUT AND LEGACY REMOVAL
+---------------------------------------------------------------------
+
+Objective:
+  Deploy safely and remove temporary dual behavior after proof.
+
+Tasks:
+
+1. Run v2 in shadow mode: perform capture and validation but keep v1 production
+   payload authoritative.
+2. Compare v1/v2 screenshots, statuses, timings and failure reasons.
+3. Review differences manually for the high-risk corpus.
+4. Enable v2 for 5% of one network, then 25%, 50% and 100%.
+5. Hold each stage long enough to cover normal traffic variation.
+6. Automatically revert to v1 when rollback thresholds are crossed.
+7. After stable full rollout, remove v1 and site-specific patches made obsolete
+   by the new architecture.
+8. Update README, runbooks, configuration reference and incident procedures.
+
+Exit criteria:
+
+- Production KPIs satisfy Section 10 for the agreed observation window.
+- Rollback has been exercised successfully.
+- The old implementation and temporary flags are removed after approval.
+
+======================================================================
+8. TESTING ARCHITECTURE
+======================================================================
+
+Use four layers:
+
+Layer A - Pure unit tests
+  Fast tests for decisions, parsing, stopping rules, validation and compression.
+
+Layer B - Deterministic local browser fixtures
+  A controlled test web application provides difficult page behaviors without
+  depending on public websites.
+
+Layer C - API and pipeline integration tests
+  Mock GET, upload and insert services and exercise queue/worker behavior.
+
+Layer D - Controlled live-site and production canary tests
+  Confirm compatibility with real-world pages without making live sites the sole
+  source of correctness.
+
+All automated tests must run in the same Linux container/browser combination as
+production. A smaller Windows smoke suite may be retained for developer use.
+
+======================================================================
+9. DETERMINISTIC TEST FIXTURE SITE
+======================================================================
+
+Create a local fixture service with at least two origins/ports so cross-origin
+frames can be tested. Each route must have a deterministic expected result.
+
+F01 /static-complete
+  Normal page with text, images, header and footer.
+
+F02 /spa-delayed
+  Empty root at DOMContentLoaded; content appears after a configurable delay.
+
+F03 /never-network-idle
+  Keeps WebSocket/analytics-style traffic active forever.
+
+F04 /lazy-images
+  Images load only after viewport intersection.
+
+F05 /broken-hero-image
+  Main image fails while other content loads.
+
+F06 /fonts-delayed
+  Delayed web font causes layout shift.
+
+F07 /same-origin-frame
+  Delayed content and images inside a same-origin iframe.
+
+F08 /cross-origin-frame
+  Delayed content on the second fixture origin.
+
+F09 /nested-frames
+  Three frame levels with one slow child.
+
+F10 /broken-frame
+  One visible frame returns an error/never completes.
+
+F11 /ad-frame-filled
+  Simulated ad frame attaches late and renders a known creative.
+
+F12 /ad-frame-no-fill
+  Simulated valid no-fill outcome.
+
+F13 /document-long
+  Finite page near and beyond CAPTURE_MAX_HEIGHT.
+
+F14 /infinite-feed
+  Adds items forever when scrolled.
+
+F15 /virtualized-feed
+  Reuses DOM nodes and maintains a large spacer.
+
+F16 /primary-inner-scroller
+  Fixed body with one large application scroller.
+
+F17 /multiple-scrollers
+  Main content plus sidebar, menu, textarea and carousel scrollers.
+
+F18 /sticky-header
+  Fixed/sticky header for tiled screenshot duplication tests.
+
+F19 /scroll-animation
+  Content appears through a controlled intersection animation.
+
+F20 /carousel
+  Multiple slides where only the active slide should appear.
+
+F21 /cookie-known-provider
+  Allowlisted consent provider.
+
+F22 /cookie-generic
+  Generic consent modal with Accept and Reject choices.
+
+F23 /legitimate-modal
+  A modal that is real landing-page content and must not be removed.
+
+F24 /login-dialog
+  Auth gate used to verify immutable classification.
+
+F25 /popup-lander
+  Main page opens the real lander in a new page.
+
+F26 /redirect-chain
+  Multiple redirects with known statuses and relative Location headers.
+
+F27 /service-worker
+  Content/resources served through a service worker.
+
+F28 /canvas-map
+  WebGL/canvas-like visual with little DOM text.
+
+F29 /video-poster
+  Video with poster/first-frame behavior.
+
+F30 /minimal-white-page
+  Legitimate mostly-white design to prevent blank-detector false positives.
+
+F31 /blank-white-page
+  Truly empty white rendering.
+
+F32 /black-canvas-failure
+  DOM claims content but rendering is black.
+
+F33 /sparse-footer
+  Footer text occupies a narrow area to test trimming.
+
+F34 /wide-document
+  Horizontal overflow beyond capture width.
+
+F35 /download-pdf
+  Direct PDF/download behavior.
+
+F36 /waf-page and /dead-page
+  Deterministic status=3 classification fixtures.
+
+F37 /asset-collision
+  Different URLs share the same basename.
+
+F38 /oversized-asset
+  Asset stream exceeds configured resource limit.
+
+F39 /private-redirect-asset
+  Asset redirects toward loopback/private/metadata address and must be rejected.
+
+F40 /mutation-navigation
+  A careless synthetic click navigates away, proving the default path performs
+  no global fake click.
+
+======================================================================
+10. METRICS AND ACCEPTANCE TARGETS
+======================================================================
+
+Finalize numerical targets after collecting Phase 0 baseline, but the following
+are minimum functional requirements.
+
+Correctness:
+
+- 100% of deterministic fixtures finish within their overall deadline.
+- 100% of reported FULL screenshots pass dimension, decode and visual checks.
+- 100% of successful JPEG files are <= the exact configured byte limit.
+- 0 silent viewport fallbacks.
+- 0 full-success labels when capture-height coverage is known to be incomplete.
+- 100% expected login/dead/WAF classification on deterministic fixtures.
+- 100% queue items are either acknowledged, actively leased, retryable or in a
+  visible dead-letter state; none disappear.
+
+Reliability:
+
+- No unbounded loops or unbounded page screenshot request.
+- No artifact deletion before confirmed terminal insert.
+- Transient API failures follow the configured retry count.
+- Browser/context cleanup succeeds after every fixture, including crashes.
+
+Visual quality:
+
+- Golden fixture comparisons meet the approved perceptual threshold.
+- Hero content, final footer/last permitted section and required visible frames
+  are present for FULL fixtures.
+- No duplicated sticky header across stitched tiles.
+- No globally exposed inactive carousel slides.
+
+Performance targets to approve after baseline:
+
+- p50 and p95 total scrape duration by page model.
+- p95 readiness duration.
+- p95 capture and compression duration.
+- peak memory per worker and per screenshot.
+- browser crash rate.
+- partial-capture and repair-attempt rates.
+- iframe/ad timeout and no-fill rates.
+- upload/insert retry rates.
+
+Production comparison targets:
+
+- Status=2 precision must not regress.
+- Visually incomplete screenshot rate must materially decrease.
+- False status=3 rate must not increase.
+- p95 duration and memory must remain within agreed operational limits.
+
+======================================================================
+11. UNIT TEST PLAN
+======================================================================
+
+U01 Configuration validation and defaults.
+U02 Country, locale, timezone and device-profile resolution.
+U03 URL sanitization and credential/query redaction.
+U04 Login path regex and title/text classification.
+U05 Blocked/dead/WAF classification using immutable snapshots.
+U06 Navigation error classification and retry eligibility.
+U07 Exponential backoff, jitter bounds and Retry-After behavior.
+U08 Popup page-selection scoring.
+U09 Primary-scroll-container ranking.
+U10 Scroll stop at document bottom.
+U11 Scroll stop after stable content.
+U12 Scroll stop on repeating virtualized content hash.
+U13 Scroll stop on time, step, height and DOM-growth limits.
+U14 Partial/truncated result labelling.
+U15 Frame tree building, nesting and maximum-depth enforcement.
+U16 Ad-frame filled/no-fill/timeout classification.
+U17 Image readiness filtering for visible versus tracking images.
+U18 Layout-stability sampling.
+U19 Visual blank/black/minimal-white classification.
+U20 DOM-rich versus screenshot-blank mismatch detection.
+U21 Screenshot dimension/coverage validation.
+U22 JPEG quality binary search.
+U23 Resize fallback and minimum-width enforcement.
+U24 Exact final-byte assertion at boundary values.
+U25 Transparent-image background flattening.
+U26 Conservative trailing-trim behavior on sparse/gradient/dark footers.
+U27 Archive unique-name generation and collision handling.
+U28 Archive size/count/time budget enforcement.
+U29 Private/loopback/link-local/metadata asset URL rejection.
+U30 HTTP and JSON success validation for media and insert APIs.
+U31 Idempotency-key stability and uniqueness.
+U32 Queue lease, renewal, expiry, retry, ack and dead-letter transitions.
+U33 Cleanup path scoping to scrape_run_id.
+U34 Stage timing and reason-code serialization.
+
+======================================================================
+12. BROWSER INTEGRATION TEST PLAN
+======================================================================
+
+For every F01-F40 route:
+
+1. Run at least three times in headless production mode.
+2. Assert terminal stage/outcome and reason code.
+3. Assert runtime below the fixture-specific deadline.
+4. Assert browser/page/context cleanup.
+5. Assert screenshot state: full/partial/fallback/failed.
+6. Assert expected dimensions, maximum bytes and capture coverage.
+7. Assert expected frame manifest.
+8. Assert no forbidden/unexpected DOM repairs.
+9. Compare approved fixtures to golden screenshots.
+10. Store failure artifacts only when an assertion fails.
+
+Golden screenshot policy:
+
+- Generate baselines inside the production Docker image.
+- Pin browser and fonts for deterministic rendering.
+- Disable fixture-side random data and timestamps.
+- Use perceptual comparison, not byte equality.
+- Mask only explicitly nondeterministic fixture regions.
+- Require manual approval for baseline updates.
+- Never update baselines automatically merely because a test failed.
+
+======================================================================
+13. API AND PIPELINE INTEGRATION TEST PLAN
+======================================================================
+
+Mock GET API cases:
+
+- normal batch
+- empty batch
+- malformed JSON
+- missing ID/destination/country
+- duplicate IDs
+- 429 with Retry-After
+- 500/502/503
+- connection timeout
+
+Mock media upload cases:
+
+- valid success
+- success HTTP with invalid/missing JSON fields
+- HTTP 413 with and without archive
+- 429 then success
+- 500 then success
+- permanent 400/401
+- connection reset during upload
+- duplicate idempotency request
+
+Mock insert API cases:
+
+- status=2 success
+- status=3 success
+- HTTP success but application code failure
+- data-too-long response
+- transient 5xx/429
+- permanent validation error
+- duplicate/idempotent replay
+- timeout after server committed the insert
+
+Queue/crash cases:
+
+- worker dies immediately after lease
+- worker dies during navigation
+- worker dies after screenshot but before upload
+- worker dies after upload but before insert
+- worker dies after insert but before ack
+- lease expires and another worker retries
+- duplicate delivery while first worker is active
+- dead-letter after maximum attempts
+
+Required assertions:
+
+- No item is lost.
+- No concurrent duplicate processing under a valid lease.
+- Backend idempotency prevents duplicate records/uploads where supported.
+- Cleanup never deletes the only recoverable artifact before terminal success.
+
+======================================================================
+14. NETWORK AND PROXY TEST MATRIX
+======================================================================
+
+Run applicable integration/live tests under:
+
+N01 Direct connection (BRIGHT_PROXIES=false).
+N02 Valid Bright Data country session.
+N03 Proxy IP not whitelisted (407 ip_forbidden).
+N04 Incorrect proxy credentials.
+N05 Proxy connect timeout.
+N06 Proxy connection reset during navigation.
+N07 DNS failure.
+N08 TLS/certificate problem.
+N09 Target HTTP 429.
+N10 Target HTTP 5xx.
+N11 Main page succeeds while a frame/resource fails.
+N12 Wrapper redirect and browser navigation use the same egress.
+
+Assertions:
+
+- Each case has the correct reason code and retry decision.
+- No credential appears in logs.
+- A proxy failure is not mislabelled as a bad landing page.
+- Main page and required ad/frame traffic use the intended egress policy.
+
+======================================================================
+15. LIVE-SITE VALIDATION PLAN
+======================================================================
+
+Use live sites only after deterministic suites pass. Maintain a reviewed corpus
+of pages representing the previously problematic categories. Because public
+sites change, assertions should focus on invariants rather than exact pixels.
+
+For each live case record:
+
+- timestamp and network/country
+- expected category, not exact content
+- final URL/domain
+- main response status
+- frame/ad outcome
+- full/partial/failure state
+- image bytes and dimensions
+- visual quality score
+- mutation journal
+- stage timings and request failures
+
+Suggested sample sizes:
+
+- Development smoke: 10-20 reviewed pages.
+- Pre-release regression: at least 50 reviewed pages across categories.
+- Shadow/canary evaluation: at least 200 ads or enough traffic to meet an agreed
+  statistical confidence level.
+
+Manual review checklist:
+
+- Hero/title/main offer visible.
+- No unresolved loader covers the page.
+- Required iframe/map/ad area rendered or accurately diagnosed.
+- No duplicated fixed headers.
+- No overlapping carousel slides caused by repair.
+- No legitimate modal/content removed.
+- Bottom content present when result says FULL.
+- Text is readable after compression.
+- Screenshot and status classification agree.
+
+======================================================================
+16. PERFORMANCE, LOAD AND SOAK TESTING
+======================================================================
+
+Performance tests:
+
+- Short static page.
+- Slow SPA.
+- Maximum-height page.
+- Frame-heavy page.
+- Asset-heavy HTML archive.
+- Maximum compression workload.
+
+Concurrency tests:
+
+- 1 worker for correctness baseline.
+- Current configured worker count.
+- Gradual increase until the approved resource ceiling is approached.
+- API slowdown while workers are active to validate backpressure.
+
+Soak test:
+
+- Minimum agreed duration, preferably several hours and enough jobs to observe
+  repeated browser creation/cleanup.
+- Track process count, handles, memory, CPU, temporary files, log growth,
+  screenshot duration, browser crashes and queue leases.
+
+Pass conditions:
+
+- No monotonic memory/process/handle/disk leak.
+- No job exceeds the overall deadline.
+- Throughput remains stable after warm-up.
+- One pathological page does not stop other workers.
+
+======================================================================
+17. FAILURE-INJECTION TESTING
+======================================================================
+
+Inject failures at every pipeline boundary:
+
+- Browser fails to launch.
+- Page crashes.
+- Navigation timeout/reset.
+- DOM evaluation throws.
+- Frame detaches during inspection.
+- Screenshot operation times out.
+- PIL cannot decode screenshot bytes.
+- Disk full/permission denied for temporary artifacts.
+- Compression cannot meet byte limit.
+- Archive download exceeds limits.
+- Media upload disconnects halfway.
+- Insert times out after server commit.
+- Worker process is terminated before ack.
+
+For each injection verify:
+
+- Correct reason code.
+- No false full-success payload.
+- Resources close safely.
+- Artifact/queue recovery follows policy.
+- Logs preserve enough safe evidence to diagnose the stage.
+
+======================================================================
+18. ROLLOUT GATES AND ROLLBACK RULES
+======================================================================
+
+Gate 1 - Unit and fixture gate
+  All mandatory unit and deterministic fixture tests pass.
+
+Gate 2 - Container gate
+  Browser, font, GPU/canvas and multiprocessing tests pass in the production
+  image.
+
+Gate 3 - Live regression gate
+  Reviewed corpus meets correctness and quality thresholds.
+
+Gate 4 - Shadow gate
+  v2 is compared with v1 without controlling production output.
+
+Gate 5 - Canary gate
+  5% -> 25% -> 50% -> 100%, with approval at each stage.
+
+Automatic rollback indicators:
+
+- material increase in insert failure or lost/unacknowledged jobs
+- material increase in false status=3
+- increase in visually blank/incomplete screenshots
+- p95 runtime or memory above agreed safety threshold
+- browser crash/process leak
+- oversized screenshot reaching upload
+- credential or sensitive-data leakage in logs
+
+Rollback must change the capture feature flag, not require emergency source-code
+edits. Queue schema and idempotency behavior must remain backward compatible
+during the rollout window.
+
+======================================================================
+19. IMPLEMENTATION ORDER AND DEPENDENCIES
+======================================================================
+
+Recommended execution order:
+
+1. Phase 0 baseline and secret hygiene.
+2. Phase 1 diagnostics/stage model.
+3. Build fixture service and core unit-test framework in parallel with Phase 1.
+4. Phase 2 navigation/browser correctness.
+5. Phase 3 readiness coordinator.
+6. Phase 4 frame/ad readiness.
+7. Phase 5 immutable classification/extraction.
+8. Phase 6 bounded scrolling.
+9. Phase 7 tiered capture.
+10. Phase 8 visual validation.
+11. Phase 9 deterministic compression.
+12. Phase 10 HTML archive.
+13. Phase 11 API/queue durability.
+14. Phase 12 concurrency and soak hardening.
+15. Phase 13 shadow/canary rollout.
+
+Do not begin broad DOM-repair work before Phase 1 diagnostics and deterministic
+fixtures exist. Otherwise regressions will remain difficult to distinguish from
+external-site changes.
+
+======================================================================
+20. PROPOSED MODULE BOUNDARIES
+======================================================================
+
+Keep new_lander.py as orchestration rather than continuing to grow it.
+
+Suggested modules:
+
+helper/browser_profile.py
+  Browser, device, country, locale, timezone and proxy configuration.
+
+helper/navigation.py
+  Navigation response, redirects, popup selection and retry decisions.
+
+helper/readiness.py
+  Page readiness and layout/image/font conditions.
+
+helper/frame_inspector.py
+  Recursive frame and probable-ad-frame inspection.
+
+helper/page_snapshot.py
+  Immutable HTML/text/classification evidence.
+
+helper/scroll_controller.py
+  Page model, primary scroller and bounded stopping rules.
+
+helper/capture.py
+  Capture planning, native/tiled/scroller modes and targeted repairs.
+
+helper/image_quality.py
+  Visual validation, blank detection and coverage scoring.
+
+helper/image_encoder.py
+  Deterministic JPEG byte-limit enforcement.
+
+helper/archive.py
+  Bounded HTML/frame/asset archive and manifest.
+
+helper/api_client.py
+  GET/upload/insert clients, retries, validation and idempotency.
+
+helper/job_store.py
+  Lease, retry, ack and dead-letter persistence.
+
+helper/diagnostics.py
+  Safe structured events, metrics and failure artifacts.
+
+The exact filenames may change, but responsibilities must remain separated and
+unit-testable.
+
+======================================================================
+21. DEFINITION OF DONE FOR EACH CHANGE
+======================================================================
+
+A change is not done until:
+
+- Code has type/contract documentation for inputs and outputs.
+- Unit tests cover success, boundary and failure paths.
+- Relevant deterministic browser fixtures pass in production Docker.
+- Logs and metrics include the new behavior and reason codes.
+- Time, memory, size and retry bounds are explicit.
+- Secrets and sensitive URLs are not exposed.
+- Cleanup and queue behavior have been tested under failure.
+- README/config/runbook changes are included.
+- Before/after evidence is attached to review for visual changes.
+- Feature-flag and rollback behavior are verified when the change affects
+  production capture.
+
+======================================================================
+22. FINAL RELEASE CHECKLIST
+======================================================================
+
+[ ] Baseline measurements saved.
+[ ] Credentials removed from source and rotated.
+[ ] Unit suite passes.
+[ ] F01-F40 deterministic fixtures pass.
+[ ] Golden screenshot changes manually approved.
+[ ] Direct and proxy network matrices pass.
+[ ] API retry/idempotency tests pass.
+[ ] Crash/lease/ack recovery tests pass.
+[ ] Exact <=1 MB rule passes at boundary values.
+[ ] No silent viewport fallback remains.
+[ ] No unbounded full-page capture remains.
+[ ] Login/status classification uses immutable page evidence.
+[ ] Required frames are inventoried and readiness is recorded.
+[ ] Infinite-feed fixture always terminates within budget.
+[ ] HTML ZIP integrity and limits pass.
+[ ] Multiprocess load and soak tests pass.
+[ ] Logs contain no credentials or sensitive authorization information.
+[ ] Shadow comparison reviewed.
+[ ] Canary stages completed without rollback threshold breach.
+[ ] Rollback exercise completed.
+[ ] README, configuration reference and operations runbook updated.
+[ ] Legacy capture path removed after the stability window.
+
+======================================================================
+23. FIRST IMPLEMENTATION MILESTONE
+======================================================================
+
+The first coding milestone should contain only the foundation needed to make all
+later work safe:
+
+1. StageResult/ScrapeRun model and reason codes.
+2. Browser event diagnostics with URL/secret redaction.
+3. Authoritative page.goto response and redirect capture.
+4. Immutable observation snapshot before screenshot mutation.
+5. Deterministic fixture service for F01-F12 and F24-F26.
+6. Unit tests for login regex, retries, redaction and stage outcomes.
+7. Feature flag allowing the existing capture implementation to remain active.
+
+After this milestone, implement the readiness and iframe work before replacing
+the screenshot strategy. This order provides evidence for every later decision
+and prevents another cycle of unverified site-specific fixes.
+
+======================================================================
+END OF PLAN
+======================================================================

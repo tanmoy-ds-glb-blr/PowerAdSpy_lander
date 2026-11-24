@@ -1,0 +1,239 @@
+default_settings:
+  NETWORK: "chatgpt"
+  INSTANCES: 3
+  TIME_GAP_IN_INSTANCES: 30
+  DEV_MODE: true
+  HIT_GET_API: true
+  SKIP_ADS_TILL: 0
+  BRIGHT_PROXIES: true
+  # One parent-process probe updates all workers. The interval is hard-capped
+  # at 10 seconds; the probe runs in a killable helper process with an 8-second
+  # hard wall so stuck DNS/socket calls cannot freeze outage detection.
+  PROXY_HEALTH_CHECK_INTERVAL_SECONDS: 5
+  PROXY_HEALTH_CHECK_TIMEOUT_SECONDS: 5
+  PROXY_HEALTH_COUNTRY: "us"
+  PROXY_HEALTH_STALE_SECONDS: 15
+  PAGE_READY_TIMEOUT_SECONDS: 30
+  FRAME_READY_TIMEOUT_SECONDS: 2
+  CAPTURE_LAYOUT_STABLE_SAMPLES: 3
+  CAPTURE_MAX_HEIGHT: 12000
+  CAPTURE_MAX_WIDTH: 1920
+  CAPTURE_MAX_SCROLL_STEPS: 20
+  CAPTURE_MAX_SCROLL_SECONDS: 45
+  SCREENSHOT_MAX_BYTES: 1048576
+  SCREENSHOT_MIN_WIDTH: 960
+  SCREENSHOT_MIN_QUALITY: 45
+  CONSENT_ACTION: "accept"
+  API_MAX_ATTEMPTS: 3
+  QUEUE_MAX_ATTEMPTS: 3
+  QUEUE_LEASE_SECONDS: 300
+  OVERALL_SCRAPE_TIMEOUT_SECONDS: 240
+  HTML_ARCHIVE_ENABLED: true
+  HTML_ARCHIVE_MAX_BYTES: 15728640
+  HTML_ASSET_MAX_BYTES: 5242880
+  HTML_TOTAL_ASSET_MAX_BYTES: 12582912
+  HTML_ASSET_MAX_COUNT: 120
+  HTML_ASSET_WORKERS: 4
+  HTML_ARCHIVE_TIMEOUT_SECONDS: 25
+  LOG_DAILY_FOLDERS: true
+  LOG_TIMEZONE: "Asia/Kolkata"
+  LOG_DATE_FORMAT: "%d-%m-%Y"
+  LOG_MAX_BYTES: 52428800
+  LOG_BACKUP_COUNT: 50
+  LOG_QUEUE_MAX_RECORDS: 20000
+  LOG_QUEUE_PUT_TIMEOUT_SECONDS: 2
+  LOG_HANDLER_IDLE_SECONDS: 3600
+  LOG_RETENTION_DAYS: 0
+  # STOP_CODE_AFTER_N_BATCHES: false
+  # N_BATCHES: 1
+
+networks:
+  facebook:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/facebook/landers/getAdwithCountryCode
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/facebook/landers/uploadFileToServer 
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/facebook/landers/insertHtmlRedirectCountry
+    MAIN_GET_DOMAIN_REG_DATE: https://api.poweradspy.com/get-domain-registration
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/insert-update-domain-date
+    MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/facebook/landers/getAdwithCountryCode
+    DEV_S3_API:  https://stagingtest-api.poweradspy.com/api/v1/facebook/landers/uploadFileToServer
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/facebook/landers/insertHtmlRedirectCountry
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info
+
+
+  instagram:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/instagram/landers/get-ads-for-blackhat
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/instagram/landers/upload_file_to-server
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/instagram/landers/insert_html_lander
+    MAIN_GET_DOMAIN_REG_DATE: https://gramapi.poweradspy.com/get-domain-registration
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/instagram/landers/get-ads-for-blackhat
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/instagram/landers/upload_file_to-server
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/instagram/landers/insert_html_lander
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info
+
+
+  youtube:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/youtube/landers/get_youtubeid_for_lander
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/youtube/landers/upload_blackhat_image_zip
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/youtube/landers/insert_html_content_lander
+    MAIN_GET_DOMAIN_REG_DATE: https://tubeapi.poweradspy.com/api/get-domain-registration
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/tiktok-domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/tiktok-post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/youtube/landers/get_youtubeid_for_lander
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/youtube/landers/upload_blackhat_image_zip
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/youtube/landers/insert_html_content_lander
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/tiktok-domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/tiktok-post-info
+
+
+  google:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/google/landers/get_ads_for_blackhat
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/google/landers/upload_gtext_blackhat
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/google/landers/insert_html_content
+    MAIN_GET_DOMAIN_REG_DATE: https://gtext.poweradspy.com/api/get-domain-registration
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/google-domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/google-post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/google/landers/get_ads_for_blackhat
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/google/landers/upload_gtext_blackhat
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/google/landers/insert_html_content
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/google-domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/google-post-info
+
+
+  gdn:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/gdn/landers/get_ads_for_blackhat
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/gdn/landers/upload_gdn_blackhat
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/gdn/landers/insert_html_content
+    MAIN_GET_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-get
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/gdn/landers/get_ads_for_blackhat
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/gdn/landers/upload_gdn_blackhat
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/gdn/landers/insert_html_content
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info
+
+
+  native:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/native/landers/get_ads_for_blackhat
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/native/landers/upload_native_blackhat
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/native/landers/insert_html_content
+    MAIN_GET_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-get
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/native/landers/get_ads_for_blackhat
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/native/landers/upload_native_blackhat
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/native/landers/insert_html_content
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info
+
+
+  linkedin:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/linkedin/landers/get-ads-for-blackhat
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/linkedin/landers/upload_file_to-server
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/linkedin/landers/insert_html_lander
+    MAIN_GET_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-get
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/linkedin/landers/get-ads-for-blackhat
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/linkedin/landers/upload_file_to-server
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/linkedin/landers/insert_html_lander
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info
+
+
+  reddit:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/reddit/landers/get_ads_for_blackhat
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/reddit/landers/upload_reddit_blackhat
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/reddit/landers/insert_reddit_blackhat_html
+    MAIN_GET_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-get
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/reddit/landers/get_ads_for_blackhat
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/reddit/landers/upload_reddit_blackhat
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/reddit/landers/insert_reddit_blackhat_html
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info
+
+
+  quora:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/quora/landers/get-ads-for-lander
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/quora/landers/upload-lander-image-zip
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/quora/landers/insert-lander-details-todb
+    MAIN_GET_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-get
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/quora/landers/get-ads-for-lander
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/quora/landers/upload-lander-image-zip
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/quora/landers/insert-lander-details-todb
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info
+
+
+  pinterest:
+    MAIN_GET_API: https://v2-api.poweradspy.com/api/v1/pinterest/landers/get-ads-for-blackhat
+    MAIN_S3_API: https://v2-api.poweradspy.com/api/v1/pinterest/landers/upload-pinterest-blackhat
+    MAIN_INSERT_API: https://v2-api.poweradspy.com/api/v1/pinterest/landers/insert-html-content
+    MAIN_GET_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-get
+    MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-update
+    MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/pinterest/landers/get-ads-for-blackhat
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/pinterest/landers/upload-pinterest-blackhat
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/pinterest/landers/insert-html-content
+    DEV_GET_DOMAIN_REG_DATE: https://stagingtest-api.poweradspy.com/api/v1/common/get-domain-registration
+    DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+    DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info
+
+
+  chatgpt:
+    MAIN_GET_API: NOT_GIVEN
+    MAIN_S3_API: NOT_GIVEN
+    MAIN_INSERT_API: NOT_GIVEN
+    MAIN_GET_DOMAIN_REG_DATE: NOT_GIVEN
+    MAIN_UPDATE_DOMAIN_REG_DATE: NOT_GIVEN
+    MAIN_POST_INFO_API: NOT_GIVEN
+
+    DEV_GET_API: https://stagingtest-api.poweradspy.com/api/v1/chatgptads/landers/getAdwithCountryCode
+    DEV_S3_API: https://stagingtest-api.poweradspy.com/api/v1/chatgptads/landers/uploadFileToServer
+    DEV_INSERT_API: https://stagingtest-api.poweradspy.com/api/v1/chatgptads/landers/insertHtmlRedirectCountry
+    DEV_GET_DOMAIN_REG_DATE: NOT_GIVEN
+    DEV_UPDATE_DOMAIN_REG_DATE: NOT_GIVEN
+    DEV_POST_INFO_API: NOT_GIVEN
+
+#   bing:
+#     MAIN_INSERT_API: https://bin.poweradspy.com/api/insert_html_content
+#     MAIN_GET_API: https://bin.poweradspy.com/api/get_ads_for_blackhat
+#     MAIN_S3_API: https://bin.poweradspy.com/api/upload_bing_blackhat
+#     MAIN_GET_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-get
+#     MAIN_UPDATE_DOMAIN_REG_DATE: https://api.poweradspy.com/domain-update
+#     MAIN_POST_INFO_API: https://api.poweradspy.com/post-info
+# #dev url not updated 
+#     DEV_INSERT_API: https://api-dev.poweradspy.com/getAdwithCountryCode 
+#     DEV_GET_API: https://api-dev.poweradspy.com/insertHtmlRedirectCountry
+#     DEV_S3_API: https://api.poweradspy.com/upload-pinterest-blackhat
+#     DEV_GET_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-get
+#     DEV_UPDATE_DOMAIN_REG_DATE: https://api-dev.poweradspy.com/domain-update
+#     DEV_POST_INFO_API: https://api-dev.poweradspy.com/post-info

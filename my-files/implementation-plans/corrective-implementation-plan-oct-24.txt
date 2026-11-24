@@ -1,0 +1,62 @@
+POWERADSPY LANDER V2 - CORRECTIVE IMPLEMENTATION PLAN
+Prepared: 24 October 2026
+
+PURPOSE
+Close the edge cases discovered during adversarial review of the first v2 implementation.
+
+CONFIRMED GAPS
+1. Readiness inspected frames only once; a late frame could be marked degraded without receiving its configured settle period.
+2. Frame visibility was inferred from the frame body, not from the owner iframe element on the parent page.
+3. Capture scrolled only window/document; fixed-body applications with a primary internal scroller remained incomplete.
+4. Native full-page capture was bounded by a measurement, but internal scroller content was not placed into document flow.
+5. Domain-age lookup still occurred before screenshot capture and could delay/alter expiring dynamic content.
+6. Media and insert idempotency keys were based mainly on ad ID/worker, risking suppression of a later legitimate re-scrape.
+7. A successfully reported status=3 failure was still returned to the queue and processed repeatedly.
+8. Test coverage did not include internal scrollers, infinite growth, delayed iframe completion, or legitimate repeated ad processing.
+
+IMPLEMENTATION
+A. Frame readiness
+- Determine visibility from frame.frame_element().bounding_box().
+- Poll visible frames until ready or the shared page-readiness deadline.
+- Preserve detached/inaccessible frame diagnostics without blocking forever.
+
+B. Page model and internal scroller
+- Detect one primary scroll container using viewport coverage, scroll range and visible area.
+- Scroll only that target, never every scrollable element.
+- Use height/time/step/stability bounds for both document and internal targets.
+- After lazy content is mounted, expand only the selected primary container for capture.
+- Record the targeted mutation and mark results partial when configured bounds are reached.
+
+C. Capture ordering
+- Capture the page immediately after readiness/snapshot/classification.
+- Run domain-age lookup after capture/extraction so WHOIS/API delays cannot change the screenshot.
+
+D. API and queue semantics
+- Create a unique scrape_run_id for every acquired attempt.
+- Keep the same operation key for retries within that attempt.
+- Use a different key for later legitimate re-scrapes.
+- Record whether status=3 was confirmed by the backend.
+- Acknowledge confirmed terminal status=3 outcomes; requeue only unreported/transient failures.
+
+E. Tests
+- Delayed frame becomes ready before deadline.
+- Fixed body plus primary internal scroller expands and captures lower content.
+- Infinite document terminates and is explicitly partial.
+- Compression remains within the exact byte limit.
+- Login classification remains based on immutable evidence.
+- Idempotency key is stable within an operation and unique across scrape runs.
+- Confirmed status=3 is terminal; failed status=3 is retryable.
+
+ACCEPTANCE CRITERIA
+- No loop lacks step and time limits.
+- No internal sidebar/menu is scrolled when a primary content scroller is selected.
+- Visible delayed frames receive the configured settle window.
+- Full results include the complete bounded primary content surface.
+- Bound exhaustion produces partial/truncated metadata.
+- Domain lookup cannot delay screenshot capture.
+- Future re-scrapes of the same ad use a new idempotency namespace.
+- Confirmed status=3 jobs are not requeued.
+- All Python files compile and all deterministic/unit/browser tests pass.
+
+DEPLOYMENT NOTE
+Live proxy/API canary, shadow comparison and multi-hour soak tests remain controlled operational stages and must not be run against production merely as part of local verification.

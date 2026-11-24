@@ -1,0 +1,108 @@
+# ==============================================================================
+# Status 3 Keywords / Dead-Page Text Markers
+# ==============================================================================
+# Any ad whose landing page matches any of these phrases will be marked
+# with "status": 3 and submitted to the API as a blocked/unavailable ad.
+#
+# INSTRUCTIONS:
+# 1. Add each phrase on a new line.
+# 2. Matching is case-insensitive (e.g. "page not found" matches "Page Not Found").
+# 3. Lines starting with # are comments and will be ignored.
+# 4. Changes take effect automatically without restarting workers.
+# ==============================================================================
+
+# --- Storefront Unavailable & Dead Pages ---
+The requested page is not available
+La página solicitada no está disponible
+We're sorry, we're having trouble fulfilling this request
+You may be using an outdated address or the link may be unavailable
+This page is not available
+Page is not available
+Page unavailable
+This content is not available right now
+Content unavailable
+Sorry, this page isn't available
+
+# --- 404 & Not Found ---
+Page Not Found
+404 Not Found
+404 Page Not Found
+404 - Page Not Found
+The page you are looking for does not exist
+The page you requested could not be found
+We can't seem to find the page you're looking for
+Oops! Page Not Found
+Looking for something? We're sorry. The Web address you entered is not a functioning page
+
+# --- Products / Listings Unavailable ---
+This product is no longer available
+Product no longer available
+Product not found
+Item no longer available
+Item not found
+Listing has ended
+This listing was ended
+This item is out of stock or unavailable
+We couldn't find that product
+
+# --- Access Denied / WAF / Blocked ---
+Access Denied
+403 Forbidden
+Request Blocked
+You don't have permission to access
+Attention Required! | Cloudflare
+Please verify you are a human
+Your request has been blocked
+
+# --- Server & Network Errors ---
+500 Internal Server Error
+502 Bad Gateway
+503 Service Unavailable
+503 Service Temporarily Unavailable
+504 Gateway Time-out
+504 Gateway Timeout
+This site can't be reached
+Server IP address could not be found
+
+# --- Domain Expired / Suspended / Parked ---
+This domain is for sale
+Buy this domain
+Domain has expired
+This account has been suspended
+Account has been suspended
+Domain parked by
+Parked free, courtesy of
+
+# --- Explicit Gated Content / Authentication Walls ---
+# (Explicit phrases only - avoids generic navigation words like 'Customer Login')
+Please log in to view this page
+Please sign in to view this page
+You must be logged in to view this page
+You must be logged in to continue
+Log in to view this content
+Sign in to view this content
+Please log in to access this content
+This content is private. Please log in
+Please sign in to access this content
+Sorry, your access to this site is not possible at this time
+This request was blocked by our security service
+local_rate_limited
+Sorry, we can't find this page
+Error code 0101
+We are sorry but we are having difficulties understanding your request
+Page non trouvée
+Schneider Electric Page not found
+Verification failed. Please try again
+Prove your humanity
+Robot or human
+Robot or human?
+Activate and hold the button to confirm that you’re human. Thank You!
+I'm not a robot.
+You're going to a link outside Facebook
+The link you tried to go to is outside Facebook:
+Sorry, your access to this site is not possible at this time
+Click the button below to continue shopping
+Sign in to «Mail»
+Enter the characters you see below
+Enter the characters seen in the image below
+Webpage not available

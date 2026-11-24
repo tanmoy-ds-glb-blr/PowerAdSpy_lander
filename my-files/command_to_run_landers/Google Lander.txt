@@ -1,0 +1,44 @@
+Google Lander
+
+ssh -p 22 glb-blr-145@192.168.1.115
+123456
+
+cd PawerAdSpy_landers/google_lander
+
+git clone https://github.com/TanmoyGlobusSoft/PowerAdSpy_landers.git
+TanmoyGlobusSoft
+<YOUR_GITHUB_PAT>
+
+mv PowerAdSpy_landers google_lander
+
+cd google_lander
+
+docker build --no-cache -t google-lander .
+
+
+docker run -d \
+  --name google-lander-container \
+  --restart unless-stopped \
+  --shm-size=2g \
+  google-lander
+
+docker run -d `
+  --name google-lander-container `
+  --restart unless-stopped `
+  --shm-size=2g `
+  google-lander
+
+
+docker exec -it google-lander-container bash
+
+
+tail -f logs/successful_payloads.json
+
+
+python3 -c 'import json, os; s2 = [json.loads(l)["ad_id"] for l in open("logs/successful_payloads.json") if l.strip()] if os.path.exists("logs/successful_payloads.json") else []; s3 = [json.loads(l)["ad_id"] for l in open("logs/unsuccessful_ads.json") if l.strip()] if os.path.exists("logs/unsuccessful_ads.json") else []; print(f"\n==================== SCRAPER STATS ====================\nTotal Processed     : {len(s2)+len(s3)}\nSuccessful (status 2): {len(s2)}\nBlocked/Err (status 3): {len(s3)}\nSuccessful ad_ids for Google: {s2}\n=======================================================\n")'
+----------------------------------------------------------------------------------------------------------------------------
+docker stop google-lander-container && docker rm google-lander-container
+rm -rf google_lander
+
+
+ssh -p 22 glb-blr-120@192.168.1.51 "echo 123456 | sudo -S docker exec google-lander-container cat /app/logs/payloads.log" > "C:\Tanmoy Patra\PowerAdSpy_lander\logs\google-payloads.log"

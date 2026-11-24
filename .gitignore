@@ -1,0 +1,72 @@
+# ── Git Ignore ───────────────────────────────────────────────────────────────
+
+# Large Chrome binaries, installers, and setup folder (too big for GitHub > 100MB)
+setup/
+setup/*
+*chrome*profile*
+*chrome_profile*
+*user_data*
+chrome-profile/
+chrome_data/
+.local/share/google-chrome/
+.config/google-chrome/
+
+# Claude / IDE / Gemini
+.claude/
+.gemini/
+
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Runtime directories & logs
+logs/
+er_logs/
+handoff_logs/
+*.log
+payloads.log
+daemon_log.txt
+output.log
+
+# Scraped media & temporary files
+/images/
+/zip/
+!docs/
+!docs/images/
+!docs/images/*
+getApi_data/
+getApi_data_dev/
+example/
+test_payload_*.json
+payload*.json
+*.tmp*
+
+learn/
+
+# System & IDE artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+format_json.json
+
+
+# Scratch generated images and caches (scripts and README tracked)
+scratch/*.jpg
+scratch/*.jpeg
+scratch/*.png
+scratch/*.webp
+scratch/__pycache__/

@@ -1,0 +1,62 @@
+# ── Python cache ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+env/
+.venv/
+
+# ── Chrome binaries, profiles, and installer cache ────────────────────────────
+setup/
+setup/*
+*chrome*profile*
+*chrome_profile*
+*user_data*
+chrome-profile/
+chrome_data/
+chrome_data*
+.local/share/google-chrome/
+.config/google-chrome/
+
+# ── Claude / IDE / Gemini ────────────────────────────────────────────────────
+.claude/
+.gemini/
+.vscode/
+.idea/
+*.swp
+
+# ── Logs / output (generated at runtime) ─────────────────────────────────────
+logs/
+er_logs/
+handoff_logs/
+*.log
+output.log
+daemon_log.txt
+payloads.log
+
+# ── Runtime & Scraped Data ───────────────────────────────────────────────────
+images/
+zip/
+getApi_data/
+getApi_data_dev/
+example/
+test_payload_*.json
+payload*.json
+*.tmp*
+
+# ── OS & Legacy artefacts ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+LICENSE.chromedriver
+
+# ── Windows-only bat files (not needed in Linux container) ───────────────────
+*.bat
+
+# ── Git ───────────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+
