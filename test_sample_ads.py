@@ -67,8 +67,8 @@ error_logger = logging.getLogger("test_sample_ads_error")
 
 SAMPLE_ADS = [
     {
-        "id": 134233,
-        "destination_url": "https://www.apple.com/in/iphone-18-pro/?cid=wwa-in-soc-iphn-trpp-socl-rbwfm-intd-rbwrl-lpv-ios-mob-xr13ose2t-gnt-broa-prlp-actniu-inen-trpcaa-andis-916ar-6s-trip-cmra-na-upg-na-na-na-07433242&mpid=7433242&link=variable-aperture",
+        "id": 134224,
+        "destination_url": "https://ajiogram.ajio.com/aarke-ritu-kumar-embellished-trench-coat/p/410331487_ecru",
         "iso": ["us"],
     }
 ]
