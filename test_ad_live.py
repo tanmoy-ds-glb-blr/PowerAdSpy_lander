@@ -63,7 +63,7 @@ def test_single_ad(ad, instance_no="live_test", port="8000"):
     payload_log = str(dated_log_path(
         "logs", "payloads.log",
         timezone=str(new_lander.config.get_default("LOG_TIMEZONE") or "Asia/Kolkata"),
-        date_format=str(new_lander.config.get_default("LOG_DATE_FORMAT") or "%d-%m-%Y"),
+        date_format=str(new_lander.config.get_default("LOG_DATE_FORMAT") or "%Y-%m-%d"),
     ))
     if os.path.exists(payload_log):
         with open(payload_log, "r", encoding="utf-8") as f:

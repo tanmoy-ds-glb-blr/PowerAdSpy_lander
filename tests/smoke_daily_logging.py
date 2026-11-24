@@ -36,7 +36,7 @@ def main():
             daily_logging.close_local_logging()
             date_name = today_folder(
                 str(new_lander.config.get_default("LOG_TIMEZONE") or "Asia/Kolkata"),
-                str(new_lander.config.get_default("LOG_DATE_FORMAT") or "%d-%m-%Y"),
+                str(new_lander.config.get_default("LOG_DATE_FORMAT") or "%Y-%m-%d"),
             )
             expected = [Path(root, date_name, Path(path).name) for _name, path, _raw in streams for root in [path.split("/", 1)[0]]]
             missing = [str(path) for path in expected if not path.is_file() or path.stat().st_size == 0]

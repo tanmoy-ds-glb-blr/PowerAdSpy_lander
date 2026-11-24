@@ -71,7 +71,7 @@ class TimezoneFormatter(logging.Formatter):
 class DailyDirectoryRouter(logging.Handler):
     """Route records to one size-rotating handler per root/date/filename."""
 
-    def __init__(self, *, base_dir=None, timezone="Asia/Kolkata", date_format="%d-%m-%Y", idle_seconds=3600,
+    def __init__(self, *, base_dir=None, timezone="Asia/Kolkata", date_format="%Y-%m-%d", idle_seconds=3600,
                  daily_folders=True):
         super().__init__(logging.DEBUG)
         self.base_dir = Path(base_dir).resolve() if base_dir else None
@@ -215,7 +215,7 @@ def _router_for(timezone, date_format, idle_seconds, daily_folders):
 
 
 def configure_logger(name, path, *, level=logging.INFO, max_bytes=52_428_800, backups=50,
-                     raw=False, timezone="Asia/Kolkata", date_format="%d-%m-%Y", idle_seconds=3600,
+                     raw=False, timezone="Asia/Kolkata", date_format="%Y-%m-%d", idle_seconds=3600,
                      daily_folders=True):
     root, filename = split_log_path(path)
     spec = {
@@ -258,7 +258,7 @@ def install_worker_queue(log_queue, put_timeout=2.0):
 
 
 class LoggingListener:
-    def __init__(self, log_queue, *, base_dir=None, timezone="Asia/Kolkata", date_format="%d-%m-%Y", idle_seconds=3600,
+    def __init__(self, log_queue, *, base_dir=None, timezone="Asia/Kolkata", date_format="%Y-%m-%d", idle_seconds=3600,
                  daily_folders=True):
         self.queue = log_queue
         self.router = DailyDirectoryRouter(

@@ -121,11 +121,11 @@ def run_ad(ad_data, index=1, total=1):
 
     print(f"\n  [RESULT for ad_id={ad_id} in {elapsed}s]:")
     if res_status == 2 and success:
-        print(f"  [PASS] SUCCESS (status: 2) -> Full lander scraped. Payload in: logs/<DD-MM-YYYY>/successful_payloads.json")
+        print(f"  [PASS] SUCCESS (status: 2) -> Full lander scraped. Payload in: logs/<YYYY-MM-DD>/successful_payloads.json")
     elif res_status == 3 and success:
         print(f"  [GATE] STATUS 3 (Login Gate / Authentication Wall) -> Scraped & inserted as status: 3 ({res_reason})")
     else:
-        print(f"  [SKIP] SKIPPED / BLOCKED (status: 3) -> Logged in: logs/<DD-MM-YYYY>/unsuccessful_ads.json ({res_reason})")
+        print(f"  [SKIP] SKIPPED / BLOCKED (status: 3) -> Logged in: logs/<YYYY-MM-DD>/unsuccessful_ads.json ({res_reason})")
 
     return {
         "ad_id": ad_id,
@@ -194,10 +194,10 @@ def main():
         print(f"  Ad ID: {r['ad_id']:<8} | {status_label:<30} | {r['elapsed_seconds']:>5}s | {r['destination_url'][:30]}")
     print("=" * 76)
     print("Logs generated:")
-    print("  - Successful Payloads (status 2)  : logs/<DD-MM-YYYY>/successful_payloads.json")
-    print("  - Unsuccessful Ads (status 3)     : logs/<DD-MM-YYYY>/unsuccessful_ads.json")
-    print("  - All Transactions & API Requests : logs/<DD-MM-YYYY>/payloads.log")
-    print("  - Proxy Connections               : logs/<DD-MM-YYYY>/proxy.log")
+    print("  - Successful Payloads (status 2)  : logs/<YYYY-MM-DD>/successful_payloads.json")
+    print("  - Unsuccessful Ads (status 3)     : logs/<YYYY-MM-DD>/unsuccessful_ads.json")
+    print("  - All Transactions & API Requests : logs/<YYYY-MM-DD>/payloads.log")
+    print("  - Proxy Connections               : logs/<YYYY-MM-DD>/proxy.log")
     print("=" * 76 + "\n")
 
 

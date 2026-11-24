@@ -27,7 +27,7 @@ def _multiprocess_log_writer(log_queue, worker_id, count):
     daily_logging.install_worker_queue(log_queue, 2)
     logger = daily_logging.configure_logger(
         f"mp-fixture-{worker_id}", "logs/shared.json", raw=True,
-        timezone="Asia/Kolkata", date_format="%d-%m-%Y",
+        timezone="Asia/Kolkata", date_format="%Y-%m-%d",
     )
     for index in range(count):
         logger.info(json.dumps({"worker": worker_id, "index": index}))
@@ -44,8 +44,8 @@ class DailyLoggingTests(unittest.TestCase):
             router.handle(_record("after", after))
             router.handle(_record("late-before", before))
             router.close()
-            day_one = Path(folder, "logs", "24-10-2026", "payloads.log").read_text(encoding="utf-8")
-            day_two = Path(folder, "logs", "25-10-2026", "payloads.log").read_text(encoding="utf-8")
+            day_one = Path(folder, "logs", "2026-10-24", "payloads.log").read_text(encoding="utf-8")
+            day_two = Path(folder, "logs", "2026-10-25", "payloads.log").read_text(encoding="utf-8")
             self.assertIn("before", day_one)
             self.assertIn("late-before", day_one)
             self.assertNotIn("after", day_one)
@@ -58,7 +58,7 @@ class DailyLoggingTests(unittest.TestCase):
             router = daily_logging.DailyDirectoryRouter(base_dir=folder)
             router.handle(_record(json.dumps(payload), timestamp, filename="success.json", raw=True))
             router.close()
-            line = Path(folder, "logs", "24-10-2026", "success.json").read_text(encoding="utf-8").strip()
+            line = Path(folder, "logs", "2026-10-24", "success.json").read_text(encoding="utf-8").strip()
             self.assertEqual(json.loads(line), payload)
             self.assertTrue(line.startswith("{"))
 
@@ -68,7 +68,7 @@ class DailyLoggingTests(unittest.TestCase):
             router = daily_logging.DailyDirectoryRouter(base_dir=folder)
             router.handle(_record("timezone-check", timestamp))
             router.close()
-            line = Path(folder, "logs", "24-10-2026", "payloads.log").read_text(encoding="utf-8")
+            line = Path(folder, "logs", "2026-10-24", "payloads.log").read_text(encoding="utf-8")
             self.assertTrue(line.startswith("2026-10-24 01:02:03 | INFO | fixture |"), line)
 
     def test_size_rotation_stays_in_date_folder(self):
@@ -78,7 +78,7 @@ class DailyLoggingTests(unittest.TestCase):
             for index in range(40):
                 router.handle(_record(f"{index}:" + "x" * 100, timestamp, max_bytes=1024))
             router.close()
-            date_folder = Path(folder, "logs", "24-10-2026")
+            date_folder = Path(folder, "logs", "2026-10-24")
             self.assertTrue((date_folder / "payloads.log").is_file())
             self.assertTrue((date_folder / "payloads.log.1").is_file())
             self.assertFalse(Path(folder, "logs", "payloads.log").exists())
@@ -101,7 +101,7 @@ class DailyLoggingTests(unittest.TestCase):
             second = daily_logging.DailyDirectoryRouter(base_dir=folder)
             second.handle(_record("second", timestamp, root="er_logs", filename="worker.log"))
             second.close()
-            content = Path(folder, "er_logs", "24-10-2026", "worker.log").read_text(encoding="utf-8")
+            content = Path(folder, "er_logs", "2026-10-24", "worker.log").read_text(encoding="utf-8")
             self.assertIn("first", content)
             self.assertIn("second", content)
 
@@ -142,8 +142,8 @@ class DailyLoggingTests(unittest.TestCase):
     def test_resolver_prefers_latest_dated_file_then_legacy(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder, "logs")
-            older = root / "23-10-2026" / "payloads.log"
-            newer = root / "24-10-2026" / "payloads.log"
+            older = root / "2026-10-23" / "payloads.log"
+            newer = root / "2026-10-24" / "payloads.log"
             older.parent.mkdir(parents=True)
             newer.parent.mkdir(parents=True)
             older.write_text("old", encoding="utf-8")

@@ -1262,7 +1262,7 @@ def setup_logger(name, filename, level=logging.INFO, max_bytes=52_428_800, backu
         backups=int(config.get_default("LOG_BACKUP_COUNT") if config.get_default("LOG_BACKUP_COUNT") is not None else backups),
         raw=raw,
         timezone=str(config.get_default("LOG_TIMEZONE") or "Asia/Kolkata"),
-        date_format=str(config.get_default("LOG_DATE_FORMAT") or "%d-%m-%Y"),
+        date_format=str(config.get_default("LOG_DATE_FORMAT") or "%Y-%m-%d"),
         idle_seconds=float(config.get_default("LOG_HANDLER_IDLE_SECONDS") or 3600),
         daily_folders=bool(config.get_default("LOG_DAILY_FOLDERS") is not False),
     )
@@ -2305,7 +2305,7 @@ def multi_chrome():
             log_queue,
             base_dir=os.getcwd(),
             timezone=str(config.get_default("LOG_TIMEZONE") or "Asia/Kolkata"),
-            date_format=str(config.get_default("LOG_DATE_FORMAT") or "%d-%m-%Y"),
+            date_format=str(config.get_default("LOG_DATE_FORMAT") or "%Y-%m-%d"),
             idle_seconds=float(config.get_default("LOG_HANDLER_IDLE_SECONDS") or 3600),
             daily_folders=bool(config.get_default("LOG_DAILY_FOLDERS") is not False),
         )

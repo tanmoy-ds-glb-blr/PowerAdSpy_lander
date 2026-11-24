@@ -22,7 +22,7 @@ def current_log(filename):
     return str(dated_log_path(
         "logs", filename,
         timezone=str(new_lander.config.get_default("LOG_TIMEZONE") or "Asia/Kolkata"),
-        date_format=str(new_lander.config.get_default("LOG_DATE_FORMAT") or "%d-%m-%Y"),
+        date_format=str(new_lander.config.get_default("LOG_DATE_FORMAT") or "%Y-%m-%d"),
     ))
 
 
