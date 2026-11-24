@@ -60,25 +60,38 @@ logger = logging.getLogger("test_sample_ads")
 error_logger = logging.getLogger("test_sample_ads_error")
 
 # ==============================================================================
-# DEFAULT REGRESSION SAMPLE ADS:
-# Loaded dynamically from tests/regression/regression_cases.json.
-# You can also pass a custom JSON file or specific ad ID via command line:
-#   python test_sample_ads.py
-#   python test_sample_ads.py --ad 134233
-#   python test_sample_ads.py path/to/my_ads.json
+# MANUALLY CONFIGURE YOUR SAMPLE ADS HERE
+# Add, remove, or edit any ad dictionaries you want to test specifically.
+# To run all regression cases instead, run: python test_sample_ads.py --all
 # ==============================================================================
 
-def get_default_sample_ads():
-    try:
-        cases = load_regression_cases()
-        return [c["ad_data"] for c in cases if c.get("ad_data", {}).get("destination_url")]
-    except Exception:
-        return [
-            {
-                "id": 134233,
-                "destination_url": "https://www.apple.com/in/iphone-18-pro/?cid=wwa-in-soc-iphn-trpp-socl-rbwfm-intd-rbwrl-lpv-ios-mob-xr13ose2t-gnt-broa-prlp-actniu-inen-trpcaa-andis-916ar-6s-trip-cmra-na-upg-na-na-na-07433242&mpid=7433242&link=variable-aperture",
-            }
-        ]
+SAMPLE_ADS = [
+    {
+        "id": 134233,
+        "destination_url": "https://www.apple.com/in/iphone-18-pro/?cid=wwa-in-soc-iphn-trpp-socl-rbwfm-intd-rbwrl-lpv-ios-mob-xr13ose2t-gnt-broa-prlp-actniu-inen-trpcaa-andis-916ar-6s-trip-cmra-na-upg-na-na-na-07433242&mpid=7433242&link=variable-aperture",
+        "iso": ["us"],
+    },
+    # {
+    #     "id": 79,
+    #     "destination_url": "https://www.ixigo.com/flights?utm",
+    #     "iso": ["IN"],
+    # },
+    # {
+    #     "id": 474, # HTTP Error Status 403
+    #     "destination_url": "https://www.saksfifthavenue.com/",
+    #     "iso": ["IN"],
+    # },
+    # {
+    #     "id": 467, # Bot/WAF block detected: 'challenges.cloudflare.com'
+    #     "destination_url": "https://www.sofi.com/",
+    #     "iso": ["IN"],
+    # },
+    # {
+    #     "id": 399, # Bot/WAF block detected: 'challenge-platform'
+    #     "destination_url": "https://www.groupon.com/deals/n-c",
+    #     "iso": ["IN"],
+    # }
+]
 
 
 def run_ad(ad_data, index=1, total=1):
@@ -146,10 +159,20 @@ def main():
         print("   [HEADLESS ACTIVE] Running silently in background (HEADLESS=True)")
     print("=" * 76)
 
-    ads_to_run = get_default_sample_ads()
+    ads_to_run = list(SAMPLE_ADS)
 
-    # Optional CLI support: python test_sample_ads.py --ad <id>
-    if "--ad" in sys.argv:
+    # Optional CLI support:
+    #   python test_sample_ads.py --all (run all regression cases)
+    #   python test_sample_ads.py --ad <id> (run specific ad)
+    if "--all" in sys.argv:
+        try:
+            cases = load_regression_cases()
+            ads_to_run = [c["ad_data"] for c in cases if c.get("ad_data", {}).get("destination_url")]
+            print(f"Loaded all {len(ads_to_run)} regression cases from catalog.")
+        except Exception as e:
+            print(f"[Warning] Failed to load regression catalog: {e}. Using inline SAMPLE_ADS.")
+            ads_to_run = list(SAMPLE_ADS)
+    elif "--ad" in sys.argv:
         try:
             ad_idx = sys.argv.index("--ad") + 1
             target_id = sys.argv[ad_idx]
