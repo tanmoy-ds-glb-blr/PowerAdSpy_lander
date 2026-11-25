@@ -91,6 +91,9 @@ RUN chmod +x start_process.sh stop_process.sh
 # ── Optional per-image default network (set via --build-arg NETWORK=...) ────
 ARG NETWORK=""
 ENV NETWORK=${NETWORK}
+RUN if [ -n "$NETWORK" ]; then \
+    sed -i "s/^  NETWORK: .*/  NETWORK: \"$NETWORK\"/" /app/config.yaml; \
+    fi
 
 # ── Expose Prometheus ports (one per instance, up to 50) ────────────────────
 EXPOSE 8000-8049
