@@ -13,6 +13,9 @@
 
 set -e
 
+# Always run relative to the repository directory (works even if invoked from parent folder)
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Available networks configured in config.yaml
 AVAILABLE_NETWORKS=("facebook" "instagram" "youtube" "google" "gdn" "native" "linkedin" "reddit" "quora" "pinterest" "chatgpt")
 
@@ -88,12 +91,12 @@ if [ ! -f ".env" ]; then
     fi
 fi
 
-# Ensure local directories exist for volume mounting
-mkdir -p logs er_logs images zip getApi_data
+# Ensure per-network local directories exist for volume mounting
+mkdir -p "logs/$NETWORK" "er_logs/$NETWORK" "images/$NETWORK" zip getApi_data
 
-# 2. Build Docker Image
-echo ">>> Building Docker image: $IMAGE_NAME ..."
-docker build -t "$IMAGE_NAME" .
+# 2. Build Docker Image (bake NETWORK into the image + keep base layers cached)
+echo ">>> Building Docker image: $IMAGE_NAME (NETWORK=$NETWORK) ..."
+docker build --build-arg NETWORK="$NETWORK" -t "$IMAGE_NAME" .
 
 # 3. Check and clean up existing container if already running or stopped
 if [ "$(docker ps -aq -f name=^/${CONTAINER_NAME}$)" ]; then
@@ -103,16 +106,16 @@ if [ "$(docker ps -aq -f name=^/${CONTAINER_NAME}$)" ]; then
 fi
 
 # 4. Run Docker Container
-echo ">>> Starting Docker container: $CONTAINER_NAME ..."
+echo ">>> Starting Docker container: $CONTAINER_NAME (NETWORK=$NETWORK) ..."
 docker run -d \
   --name "$CONTAINER_NAME" \
   --restart unless-stopped \
   --shm-size=2g \
   --env-file .env \
   -e NETWORK="$NETWORK" \
-  -v "$(pwd)/logs:/app/logs" \
-  -v "$(pwd)/er_logs:/app/er_logs" \
-  -v "$(pwd)/images:/app/images" \
+  -v "$(pwd)/logs/$NETWORK:/app/logs" \
+  -v "$(pwd)/er_logs/$NETWORK:/app/er_logs" \
+  -v "$(pwd)/images/$NETWORK:/app/images" \
   "$IMAGE_NAME"
 
 echo ""

@@ -88,6 +88,10 @@ RUN mkdir -p logs er_logs images zip getApi_data getApi_data_dev handoff_logs
 # ── Script permissions ───────────────────────────────────────────────────────
 RUN chmod +x start_process.sh stop_process.sh
 
+# ── Optional per-image default network (set via --build-arg NETWORK=...) ────
+ARG NETWORK=""
+ENV NETWORK=${NETWORK}
+
 # ── Expose Prometheus ports (one per instance, up to 50) ────────────────────
 EXPOSE 8000-8049
 

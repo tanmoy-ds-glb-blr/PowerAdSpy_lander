@@ -295,7 +295,7 @@ def get(url: str, network: str = None, timeout_seconds=None):
     3. If scraped successfully, send to PUT API
     """
     if not network:
-        network = CONFIG.get("default_settings", {}).get("NETWORK")
+        network = os.environ.get("NETWORK") or CONFIG.get("default_settings", {}).get("NETWORK")
 
     if not network:
         raise ValueError(
