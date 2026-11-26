@@ -139,6 +139,11 @@ def _hydrate_lazy_images_and_reveals(page, wait_for_pending=False, max_wait_seco
           });
           document.querySelectorAll('[data-aos]').forEach(el => el.classList.add('aos-animate'));
           document.querySelectorAll('.wow').forEach(el => el.classList.add('animated'));
+          document.querySelectorAll('.preFade, .preSlide, .preScale, .preFlex').forEach(el => {
+            el.classList.add('fadeIn');
+            el.style.opacity = '1';
+            el.style.transform = 'none';
+          });
           document.querySelectorAll('[data-sr-id]').forEach(el => {
             el.style.opacity = '1';
             el.style.visibility = 'visible';
