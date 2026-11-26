@@ -1,5 +1,5 @@
 default_settings:
-  NETWORK: "facebook"
+  NETWORK: "youtube"
   INSTANCES: 3
   TIME_GAP_IN_INSTANCES: 30
   DEV_MODE: true
