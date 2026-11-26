@@ -137,6 +137,17 @@ def _hydrate_lazy_images_and_reveals(page, wait_for_pending=False, max_wait_seco
               }
             } catch (e) {}
           });
+          document.querySelectorAll('picture source').forEach(src => {
+            try {
+              if (!src.getAttribute('srcset')) {
+                let ds = src.getAttribute('data-srcset') || src.getAttribute('data-lazy-srcset');
+                if (ds) {
+                  ds = ds.replace(/\{width\}|%7Bwidth%7D/gi, '720');
+                  src.setAttribute('srcset', ds);
+                }
+              }
+            } catch (e) {}
+          });
           document.querySelectorAll('[data-aos]').forEach(el => el.classList.add('aos-animate'));
           document.querySelectorAll('.wow').forEach(el => el.classList.add('animated'));
           document.querySelectorAll('.preFade, .preSlide, .preScale, .preFlex').forEach(el => {
@@ -153,6 +164,29 @@ def _hydrate_lazy_images_and_reveals(page, wait_for_pending=False, max_wait_seco
         return
     if not wait_for_pending:
         return
+    try:
+        page.evaluate("""() => {
+          if (!document.getElementById('pas-capture-polish')) {
+            const st = document.createElement('style');
+            st.id = 'pas-capture-polish';
+            st.textContent = 'html, body { scrollbar-width: none !important; } *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }';
+            (document.head || document.documentElement).appendChild(st);
+          }
+          document.querySelectorAll('header, nav, div, aside, section').forEach(el => {
+            try {
+              const cs = getComputedStyle(el);
+              if (cs.position === 'fixed' || cs.position === 'sticky') {
+                const r = el.getBoundingClientRect();
+                if (r.height > 0 && r.height < window.innerHeight * 0.6) {
+                  el.style.setProperty('position', 'static', 'important');
+                }
+              }
+            } catch (e) {}
+          });
+          return document.fonts ? document.fonts.ready.then(() => true).catch(() => true) : true;
+        }""")
+    except Exception:
+        pass
     budget = min(max_wait_seconds, deadline.remaining()) if deadline else max_wait_seconds
     end = time.monotonic() + max(0.0, budget)
     while time.monotonic() < end:
