@@ -8,10 +8,6 @@ Password - 123456
 
 cd PawerAdSpy_landers/facebook_lander
 
-git clone https://github.com/TanmoyGlobusSoft/PowerAdSpy_landers.git
-TanmoyGlobusSoft
-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
-
 mv PowerAdSpy_landers facebook_lander
 
 cd facebook_lander
@@ -33,10 +29,18 @@ docker run -d `
   facebook-lander
 
 
-docker exec -it facebook-lander-container bash
+sudo docker exec -it facebook_lander_container bash
 
 
-python3 -c 'import json, os; s2 = [json.loads(l)["ad_id"] for l in open("logs/successful_payloads.json") if l.strip()] if os.path.exists("logs/successful_payloads.json") else []; s3 = [json.loads(l)["ad_id"] for l in open("logs/unsuccessful_ads.json") if l.strip()] if os.path.exists("logs/unsuccessful_ads.json") else []; print(f"\n==================== SCRAPER STATS ====================\nTotal Processed     : {len(s2)+len(s3)}\nSuccessful (status 2): {len(s2)}\nBlocked/Err (status 3): {len(s3)}\nSuccessful ad_ids for Facebook: {s2}\n=======================================================\n")'
+(Today's Logs)
+
+python3 -c 'import json, os, re; from helper.log_paths import dated_log_path, today_folder; d = today_folder(); net = os.environ.get("NETWORK", "Facebook").capitalize(); load = lambda n: [x["ad_id"] for p in [dated_log_path("logs", n, date=d)] if p.is_file() and p.stat().st_size > 0 for x in json.loads("[" + re.sub(r"\}\s*\{(?=\s*\"ad_id\")", "},{", p.read_text(encoding="utf-8", errors="replace")) + "]") if "ad_id" in x]; s2, s3 = load("successful_payloads.json"), load("unsuccessful_ads.json"); print(f"\n==================== SCRAPER STATS ({d}) ====================\nTotal Processed     : {len(s2)+len(s3)}\nSuccessful (status 2): {len(s2)}\nBlocked/Err (status 3): {len(s3)}\nSuccessful ad_ids for {net}: {s2}\n==================================================================\n")'
+
+
+
+(Check a Specific Date's Stats)
+
+python3 -c 'import json, os, re; from helper.log_paths import dated_log_path; d = "2026-11-24"; net = os.environ.get("NETWORK", "Facebook").capitalize(); load = lambda n: [x["ad_id"] for p in [dated_log_path("logs", n, date=d)] if p.is_file() and p.stat().st_size > 0 for x in json.loads("[" + re.sub(r"\}\s*\{(?=\s*\"ad_id\")", "},{", p.read_text(encoding="utf-8", errors="replace")) + "]") if "ad_id" in x]; s2, s3 = load("successful_payloads.json"), load("unsuccessful_ads.json"); print(f"\n==================== SCRAPER STATS ({d}) ====================\nTotal Processed     : {len(s2)+len(s3)}\nSuccessful (status 2): {len(s2)}\nBlocked/Err (status 3): {len(s3)}\nSuccessful ad_ids for {net}: {s2}\n==================================================================\n")'
 
 
 tail -f logs/successful_payloads.json

@@ -1,0 +1,23 @@
+Now, since this issue has been fixed, create a proper regression test case for this specific scenario and integrate it into the existing test suite.
+
+The test should ensure that this behaviour remains correct in future code updates, so that if the same issue reappears, it is automatically detected before the code is pushed to GitHub.
+
+Ensure the test case:
+- Reproduces the original problematic scenario.
+- Validates the expected behaviour after the fix.
+- Covers relevant edge cases, where applicable.
+- Uses the existing test structure and conventions rather than creating unnecessary duplicate test files.
+- Can be executed easily as part of the regular testing workflow.
+- Includes clear assertions so that a future failure immediately indicates what behaviour has regressed.
+
+The goal is to permanently preserve this fix as a regression test, preventing the same issue from reappearing in future code changes.
+
+
+
+
+
+
+
+
+now please push all the latest code on the GitHub and in the linux server pull it 
+in linux server remote the old lander and run the landers with this new code for all the networks

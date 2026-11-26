@@ -32,7 +32,7 @@ docker run -d `
   insta-lander
 
 
-docker exec -it insta-lander-container bash
+sudo docker exec -it insta_lander_container bash
 
 
 tail -f logs/successful_payloads.json
