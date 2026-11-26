@@ -110,6 +110,56 @@ def _bounded_scroll(page, maximum_height, maximum_steps, maximum_seconds, deadli
     return {"steps": steps, "primary": primary}
 
 
+def _hydrate_lazy_images_and_reveals(page, wait_for_pending=False, max_wait_seconds=4.0, deadline=None):
+    """Promote lazy-loaded images to eager, reveal scroll-hidden elements, and wait briefly for decoding."""
+    try:
+        page.evaluate("""() => {
+          document.querySelectorAll('img').forEach(img => {
+            try {
+              if (img.loading === 'lazy') img.loading = 'eager';
+              const cur = img.getAttribute('src') || '';
+              const isPlaceholder = !cur || cur.startsWith('data:image/') || cur.includes('blank.gif') || cur.includes('placeholder') || cur.includes('{width}') || cur.includes('%7Bwidth%7D');
+              const targetW = Math.max(360, Math.min(1200, Math.round(img.clientWidth || (img.parentElement && img.parentElement.clientWidth) || 720)));
+              if (isPlaceholder) {
+                let candidate = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-original') || img.getAttribute('data-url') || cur;
+                if (candidate) {
+                  candidate = candidate.replace(/\{width\}|%7Bwidth%7D/gi, String(targetW));
+                  img.setAttribute('src', candidate);
+                }
+              }
+              if (!img.getAttribute('srcset')) {
+                const ds = img.getAttribute('data-srcset') || img.getAttribute('data-lazy-srcset');
+                if (ds) img.setAttribute('srcset', ds);
+              }
+              if (img.classList && img.classList.contains('lazyload')) {
+                img.classList.remove('lazyload');
+                img.classList.add('lazyloaded');
+              }
+            } catch (e) {}
+          });
+          document.querySelectorAll('[data-aos]').forEach(el => el.classList.add('aos-animate'));
+          document.querySelectorAll('.wow').forEach(el => el.classList.add('animated'));
+          document.querySelectorAll('[data-sr-id]').forEach(el => {
+            el.style.opacity = '1';
+            el.style.visibility = 'visible';
+          });
+        }""")
+    except Exception:
+        return
+    if not wait_for_pending:
+        return
+    budget = min(max_wait_seconds, deadline.remaining()) if deadline else max_wait_seconds
+    end = time.monotonic() + max(0.0, budget)
+    while time.monotonic() < end:
+        try:
+            pending = int(page.evaluate("() => Array.from(document.images).filter(i => (i.currentSrc || i.src) && !i.complete).length") or 0)
+            if pending == 0:
+                break
+        except Exception:
+            break
+        time.sleep(0.25)
+
+
 def _expand_primary_scroller(page):
     return page.evaluate("""() => {
       const el=document.querySelector('[data-pas-primary-scroller="1"]');
@@ -245,6 +295,7 @@ def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_
     initial = page.evaluate(MEASURE_JS)
     doc_height = int(initial.get("height") or 0)
     doc_width = int(initial.get("width") or 0)
+    _hydrate_lazy_images_and_reveals(page, wait_for_pending=False, deadline=deadline)
     scroll_seconds = min(cfg["max_seconds"], deadline.remaining()) if deadline else cfg["max_seconds"]
     scroll_result = _bounded_scroll(
         page,
@@ -256,6 +307,7 @@ def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_
     )
     if scroll_result.get("primary") and _expand_primary_scroller(page):
         journal.append("expanded_primary_scroller")
+    _hydrate_lazy_images_and_reveals(page, wait_for_pending=True, max_wait_seconds=4.0, deadline=deadline)
     final = page.evaluate(MEASURE_JS)
     doc_height = max(doc_height, int(final.get("height") or 0))
     doc_width = max(doc_width, int(final.get("width") or 0))
