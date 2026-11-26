@@ -356,6 +356,40 @@ def _has_visible_cross_origin_iframe(page):
         return False
 
 
+def _overlay_cross_origin_iframes(page, image):
+    """Scroll each visible cross-origin iframe into view, capture it, and composite onto image."""
+    try:
+        origin = page.evaluate("() => location.origin")
+        frames = page.locator("iframe")
+        count = frames.count()
+        for idx in range(count):
+            loc = frames.nth(idx)
+            try:
+                src = loc.get_attribute("src") or ""
+                if not src or src == "about:blank" or src.startswith("javascript:"):
+                    continue
+                is_cross = page.evaluate("([s, o]) => { try { return new URL(s, location.href).origin !== o; } catch (e) { return false; } }", [src, origin])
+                if not is_cross:
+                    continue
+                box = loc.bounding_box()
+                if not box or box["width"] < 100 or box["height"] < 100:
+                    continue
+                scroll_y = page.evaluate("() => window.scrollY || 0")
+                scroll_x = page.evaluate("() => window.scrollX || 0")
+                x, y = max(0, int(box["x"] + scroll_x)), max(0, int(box["y"] + scroll_y))
+                loc.scroll_into_view_if_needed(timeout=5000)
+                time.sleep(0.3)
+                raw_iframe = loc.screenshot(timeout=10000)
+                tile = Image.open(BytesIO(raw_iframe)).convert("RGB")
+                if x < image.width and y < image.height:
+                    image.paste(tile, (x, y))
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return image
+
+
 def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_check=None):
     cfg = _settings(config)
     target = os.path.join("images", str(instance_no), f"{img_name}.jpg")
@@ -394,22 +428,7 @@ def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_
     try:
         if abort_check:
             abort_check()
-        if _has_visible_cross_origin_iframe(page):
-            try:
-                raw = _capture_segmented(
-                    page,
-                    capture_width,
-                    capture_height,
-                    screenshot_timeout,
-                    deadline=deadline,
-                    abort_check=abort_check,
-                )
-                mode = "segmented_cross_origin_iframe"
-            except ProxyUnavailableError:
-                raise
-            except Exception:
-                raw = page.screenshot(full_page=True, timeout=screenshot_timeout)
-        elif not truncated:
+        if not truncated:
             raw = page.screenshot(full_page=True, timeout=screenshot_timeout)
         else:
             mode = "bounded_clip"
@@ -441,6 +460,8 @@ def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_
     image = Image.open(BytesIO(raw)).convert("RGB")
     if image.height > capture_height or image.width > capture_width:
         image = image.crop((0, 0, min(image.width, capture_width), min(image.height, capture_height)))
+    if mode != "segmented_fallback":
+        image = _overlay_cross_origin_iframes(page, image)
     scores = _visual_scores(image, int(final.get("textLength") or 0))
     if scores["dom_rich_but_blank"] and mode != "segmented_fallback":
         raw = _capture_segmented(
