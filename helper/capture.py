@@ -322,6 +322,29 @@ def encode_under_limit(image, path, max_bytes=1048576, min_width=960, min_qualit
     return working.width, working.height, len(chosen), chosen_quality
 
 
+def _has_visible_cross_origin_iframe(page):
+    """Return True if the page contains a visible content-sized cross-origin iframe."""
+    try:
+        return bool(page.evaluate("""() => {
+          const origin = location.origin;
+          for (const f of document.querySelectorAll('iframe')) {
+            const src = f.getAttribute('src') || '';
+            if (!src || src === 'about:blank' || src.startsWith('javascript:')) continue;
+            const r = f.getBoundingClientRect();
+            if (r.width < 100 || r.height < 100) continue;
+            const cs = getComputedStyle(f);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) continue;
+            try {
+              const u = new URL(src, location.href);
+              if (u.origin !== origin) return true;
+            } catch (e) {}
+          }
+          return false;
+        }"""))
+    except Exception:
+        return False
+
+
 def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_check=None):
     cfg = _settings(config)
     target = os.path.join("images", str(instance_no), f"{img_name}.jpg")
@@ -360,7 +383,17 @@ def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_
     try:
         if abort_check:
             abort_check()
-        if not truncated:
+        if _has_visible_cross_origin_iframe(page):
+            raw = _capture_segmented(
+                page,
+                capture_width,
+                capture_height,
+                screenshot_timeout,
+                deadline=deadline,
+                abort_check=abort_check,
+            )
+            mode = "segmented_cross_origin_iframe"
+        elif not truncated:
             raw = page.screenshot(full_page=True, timeout=screenshot_timeout)
         else:
             mode = "bounded_clip"
