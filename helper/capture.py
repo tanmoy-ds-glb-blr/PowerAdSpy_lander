@@ -245,6 +245,17 @@ def _visual_scores(image, text_length=0):
 
 def _capture_segmented(page, width, height, timeout_ms, deadline=None, abort_check=None):
     """Capture bounded document clips and stitch them without an unbounded bitmap request."""
+    try:
+        page.evaluate("""() => {
+          document.documentElement.style.setProperty('overflow-y', 'auto', 'important');
+          document.documentElement.style.setProperty('height', 'auto', 'important');
+          if (document.body) {
+            document.body.style.setProperty('overflow-y', 'auto', 'important');
+            document.body.style.setProperty('height', 'auto', 'important');
+          }
+        }""")
+    except Exception:
+        pass
     stitched = Image.new("RGB", (width, height), "white")
     viewport = page.evaluate("() => ({width:innerWidth,height:innerHeight})")
     viewport_width = max(1, int(viewport.get("width") or 1280))
@@ -384,15 +395,20 @@ def capture_page(page, img_name, instance_no, config=None, deadline=None, abort_
         if abort_check:
             abort_check()
         if _has_visible_cross_origin_iframe(page):
-            raw = _capture_segmented(
-                page,
-                capture_width,
-                capture_height,
-                screenshot_timeout,
-                deadline=deadline,
-                abort_check=abort_check,
-            )
-            mode = "segmented_cross_origin_iframe"
+            try:
+                raw = _capture_segmented(
+                    page,
+                    capture_width,
+                    capture_height,
+                    screenshot_timeout,
+                    deadline=deadline,
+                    abort_check=abort_check,
+                )
+                mode = "segmented_cross_origin_iframe"
+            except ProxyUnavailableError:
+                raise
+            except Exception:
+                raw = page.screenshot(full_page=True, timeout=screenshot_timeout)
         elif not truncated:
             raw = page.screenshot(full_page=True, timeout=screenshot_timeout)
         else:
