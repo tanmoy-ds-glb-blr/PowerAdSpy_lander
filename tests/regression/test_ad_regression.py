@@ -446,6 +446,61 @@ class AdScrapingRegressionTests(unittest.TestCase):
             self.assertGreater(h, 5000, "Encoded image height should remain substantial")
             self.assertGreaterEqual(quality, 45, "Quality dropped below minimum 45")
 
+    def test_screenshot_lazy_images_and_width_template_hydration(self):
+        """Lazy-loaded images and {width} URL templates (e.g. Shopify lazysizes) must resolve and load before capture."""
+        from io import BytesIO
+        buf = BytesIO()
+        Image.new("RGB", (400, 300), color=(30, 144, 255)).save(buf, format="PNG")
+        png_bytes = buf.getvalue()
+
+        html = """
+        <!doctype html><html><body style="margin:0;padding:20px">
+          <h1>Lazy Image & Width Template Fixture</h1>
+          <div style="height:2000px">Spacer</div>
+          <img id="img-data-src" loading="lazy" class="lazyload" style="width:720px;height:300px"
+               src="data:image/gif;base64,R0lGODlhAQABAAAAACw="
+               data-src="https://cdn.example.test/product_{width}x.png" />
+          <img id="img-encoded" loading="lazy" style="width:720px;height:300px"
+               src="https://cdn.example.test/product_%7Bwidth%7Dx.png" />
+          <img id="img-lazy-src" loading="lazy" style="width:720px;height:300px"
+               data-lazy-src="https://cdn.example.test/product_720x.png" />
+        </body></html>
+        """
+        page, temp_path = self._render_in_browser(html)
+        old_cwd = os.getcwd()
+        try:
+            def handle_route(route):
+                url = route.request.url
+                if "{width}" in url or "%7Bwidth%7D" in url.upper() or "%7bwidth%7d" in url.lower():
+                    route.fulfill(status=404, body="Not Found")
+                else:
+                    route.fulfill(status=200, content_type="image/png", body=png_bytes)
+
+            page.route("https://cdn.example.test/**", handle_route)
+            with tempfile.TemporaryDirectory() as folder:
+                try:
+                    os.chdir(folder)
+                    result = capture_page(page, "lazy_hydration", "reg_instance")
+                    self.assertEqual(result.state, "full")
+                    self.assertLessEqual(result.final_bytes, 1048576)
+
+                    img_states = page.evaluate("""() => Array.from(document.images).map(i => ({
+                        id: i.id,
+                        src: i.getAttribute('src') || '',
+                        naturalWidth: i.naturalWidth,
+                        complete: i.complete
+                    }))""")
+                    for st in img_states:
+                        self.assertNotIn("{width}", st["src"], f"Unresolved {{width}} in {st['id']}: {st['src']}")
+                        self.assertNotIn("%7Bwidth%7D", st["src"].upper(), f"Unresolved %7Bwidth%7D in {st['id']}")
+                        self.assertGreater(st["naturalWidth"], 0, f"Image {st['id']} failed to load (naturalWidth=0)")
+                finally:
+                    os.chdir(old_cwd)
+        finally:
+            page.close()
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
 
 if __name__ == "__main__":
     unittest.main()

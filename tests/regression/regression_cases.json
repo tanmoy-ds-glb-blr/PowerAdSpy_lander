@@ -223,5 +223,23 @@
       "status": 3,
       "reason_contains": "404"
     }
+  },
+  {
+    "id": 134260,
+    "case_code": "REG-012",
+    "title": "Fandom Lights Shopify Lazy-Load {width} Template",
+    "category": "valid_lander",
+    "defect_history": "Shopify storefront using lazysizes data-src URLs with {width} placeholders (e.g. _{width}x.png). Offscreen product images previously failed to load or requested literal %7Bwidth%7D URLs (404), leaving broken image icons in screenshots.",
+    "ad_data": {
+      "id": 134260,
+      "destination_url": "https://fandomlights.com/",
+      "iso": ["us"]
+    },
+    "expected": {
+      "status": 2,
+      "reason_contains": null,
+      "requires_screenshot": true,
+      "max_screenshot_bytes": 1048576
+    }
   }
 ]
