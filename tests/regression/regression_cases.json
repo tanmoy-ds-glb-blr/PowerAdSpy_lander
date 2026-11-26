@@ -241,5 +241,23 @@
       "requires_screenshot": true,
       "max_screenshot_bytes": 1048576
     }
+  },
+  {
+    "id": 277746,
+    "case_code": "REG-013",
+    "title": "Kortus Electric Squarespace preFade & Cross-Origin Iframe Lander",
+    "category": "valid_lander",
+    "defect_history": "Squarespace site using .preFade opacity:0 scroll-reveal classes, fixed cookie bar, and two large cross-origin iframes (discover.mitsubishicomfort.com). Previously suffered from early scroll abort (stable>=3), hidden preFade sections, and blank offscreen cross-origin iframes in full-page screenshots.",
+    "ad_data": {
+      "id": 277746,
+      "destination_url": "https://kortuselectric.com/?gad_source=2&gad_campaignid=23510996077&gbraid=0AAAAApW_jgMuwwXpMJgRwgJypVXeOeAFd&gclid=EAIaIQobChMIiMaN8_aklAMVxwN2Bh2kBQtLEAEYAiAAEgLSffD_BwE",
+      "iso": ["us"]
+    },
+    "expected": {
+      "status": 2,
+      "reason_contains": null,
+      "requires_screenshot": true,
+      "max_screenshot_bytes": 1048576
+    }
   }
 ]

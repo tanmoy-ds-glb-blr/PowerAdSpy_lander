@@ -501,6 +501,60 @@ class AdScrapingRegressionTests(unittest.TestCase):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
 
+    def test_screenshot_prefade_scroll_and_cross_origin_iframe_capture(self):
+        """Squarespace .preFade elements and offscreen cross-origin iframes must be visible in full-page capture."""
+        html = """
+        <!doctype html><html><head><style>
+          .preFade { opacity: 0; }
+          .preFade.fadeIn { opacity: 1; }
+        </style></head><body style="margin:0;padding:0;background:#fff">
+          <div style="height:1000px;background:#eee">Hero Section</div>
+          <section id="prefade-sec" class="preFade" style="height:800px;background:#222;color:#fff;padding:40px">
+            <h2>Our Services</h2><p>Revealed section content</p>
+          </section>
+          <div style="height:400px;background:#fff">Spacer</div>
+          <iframe id="cross-frame" src="https://iframe.example.test/widget"
+                  style="width:800px;height:400px;border:0;display:block"></iframe>
+          <div style="height:600px;background:#f5f5f5">Footer</div>
+        </body></html>
+        """
+        page, temp_path = self._render_in_browser(html)
+        old_cwd = os.getcwd()
+        try:
+            page.route(
+                "https://iframe.example.test/**",
+                lambda route: route.fulfill(
+                    status=200,
+                    content_type="text/html",
+                    body="<html><body style='margin:0;background:#0b5394;color:#fff'><h1>Iframe Content</h1></body></html>",
+                ),
+            )
+            page.evaluate("() => { const f = document.querySelector('#cross-frame'); f.src = f.src; }")
+            page.wait_for_timeout(500)
+            with tempfile.TemporaryDirectory() as folder:
+                try:
+                    os.chdir(folder)
+                    result = capture_page(page, "prefade_iframe", "reg_instance")
+                    self.assertEqual(result.state, "full")
+                    self.assertLessEqual(result.final_bytes, 1048576)
+
+                    # 1. Verify .preFade was revealed
+                    pf = page.evaluate("() => ({cls: document.querySelector('#prefade-sec').className, op: getComputedStyle(document.querySelector('#prefade-sec')).opacity})")
+                    self.assertIn("fadeIn", pf["cls"])
+                    self.assertEqual(pf["op"], "1")
+
+                    # 2. Verify cross-origin iframe region is painted (not blank white) in saved screenshot
+                    with Image.open(result.image_path) as im:
+                        # Sample center of iframe (x=400, y=2400)
+                        px = im.getpixel((400, min(im.height - 10, 2400)))
+                        self.assertLess(sum(px) / 3, 200, f"Cross-origin iframe region was blank/white: pixel={px}")
+                finally:
+                    os.chdir(old_cwd)
+        finally:
+            page.close()
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
 
 if __name__ == "__main__":
     unittest.main()
