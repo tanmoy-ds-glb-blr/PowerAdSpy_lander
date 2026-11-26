@@ -67,8 +67,8 @@ error_logger = logging.getLogger("test_sample_ads_error")
 
 SAMPLE_ADS = [
     {
-        "id": 277734,
-        "destination_url": "https://www.myhomequote.com/home-quote/gutterquote?a=280&api_key=z4fcR0ywuT2QeKgF&cp=1&t10=yt&googlepixelid=AW-16510757587/ZXynCPae2NIZENPV-MA9&s1=G468_37_169&s4=807055279863&gad_source=2&gad_campaignid=23797465410&gclid=EAIaIQobChMI6JLAv_aklAMVe2AeAh3UJguPEAEYASAAEgIFK_D_BwE",
+        "id": 277746,
+        "destination_url": "https://kortuselectric.com/?gad_source=2&gad_campaignid=23510996077&gbraid=0AAAAApW_jgMuwwXpMJgRwgJypVXeOeAFd&gclid=EAIaIQobChMIiMaN8_aklAMVxwN2Bh2kBQtLEAEYAiAAEgLSffD_BwE",
     }
 ]
 
