@@ -104,7 +104,7 @@ def _bounded_scroll(page, maximum_height, maximum_steps, maximum_seconds, deadli
         signature = state.get("signature")
         stable = stable + 1 if signature == last_signature else 0
         last_signature = signature
-        if state.get("bottom") or int(state.get("y") or 0) >= maximum_height or stable >= 3:
+        if state.get("bottom") or int(state.get("y") or 0) >= maximum_height:
             break
     page.evaluate("""() => { const t=document.querySelector('[data-pas-primary-scroller="1"]'); if(t)t.scrollTop=0; else window.scrollTo(0,0); }""")
     return {"steps": steps, "primary": primary}
